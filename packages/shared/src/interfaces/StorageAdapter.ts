@@ -1,28 +1,37 @@
 import type { ActiveIssue, ExecutionLogEntry, PhaseMetric } from '../types/storage.types.js';
 
 /**
- * Abstraction for persistent storage operations.
+ * Abstracts database operations for agent-internal data.
+ * Matches 3-interfaces.md §8.
  */
 export interface StorageAdapter {
-  /** Saves or updates an active issue record. */
-  upsertActiveIssue(activeIssue: ActiveIssue): Promise<void>;
+    /** Fetch the currently active issue record. */
+    getActiveIssue(): Promise<ActiveIssue | null>;
 
-  /** Retrieves an active issue by its key. */
-  getActiveIssue(issueKey: string): Promise<ActiveIssue | null>;
+    /** Create or update the active issue record. */
+    setActiveIssue(record: ActiveIssue): Promise<void>;
 
-  /** Removes an active issue record. */
-  removeActiveIssue(issueKey: string): Promise<void>;
+    /** Remove the active issue record (done / cancelled / failed). */
+    clearActiveIssue(issueKey: string): Promise<void>;
 
-  /** Retrieves all currently active issues. */
-  getAllActiveIssues(): Promise<ReadonlyArray<ActiveIssue>>;
+    /** Append an audit log entry. */
+    addExecutionLog(entry: ExecutionLogEntry): Promise<void>;
 
-  /** Appends an execution log entry. */
-  appendLog(entry: ExecutionLogEntry): Promise<void>;
+    /** Fetch execution history, optionally filtered by issue. */
+    getExecutionHistory(issueKey?: string): Promise<ReadonlyArray<ExecutionLogEntry>>;
 
-  /** Retrieves execution logs for an issue. */
-  getLogs(issueKey: string): Promise<ReadonlyArray<ExecutionLogEntry>>;
+    /** Insert or update a phase metric record. */
+    addMetric(metric: PhaseMetric): Promise<void>;
 
-  /** Records a phase metric. */
-  recordMetric(metric: PhaseMetric): Promise<void>;
+    /** Update an in-progress metric. */
+    updateMetric(issueKey: string, phase: string, update: Partial<PhaseMetric>): Promise<void>;
+
+    /** Fetch metrics, optionally filtered by issue. */
+    getMetrics(issueKey?: string): Promise<ReadonlyArray<PhaseMetric>>;
+
+    /** Read a runtime config override from the database. */
+    getConfigOverride(key: string): Promise<unknown | null>;
+
+    /** Upsert a runtime config override. */
+    setConfigOverride(key: string, value: unknown, updatedBy?: string): Promise<void>;
 }
-

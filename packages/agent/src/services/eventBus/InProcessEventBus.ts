@@ -9,32 +9,31 @@ type EventHandler = (payload: unknown) => void;
  */
 @injectable()
 export class InProcessEventBus implements EventBus {
-  private readonly handlers: Map<string, Set<EventHandler>> = new Map();
+    private readonly handlers: Map<string, Set<EventHandler>> = new Map();
 
-  /** Publishes an event to all registered handlers. */
-  public publish(eventName: string, payload: unknown): void {
-    const eventHandlers = this.handlers.get(eventName);
-    if (eventHandlers) {
-      for (const handler of eventHandlers) {
-        handler(payload);
-      }
+    /** Publishes an event to all registered handlers. */
+    public emit(eventName: string, payload: unknown): void {
+        const eventHandlers = this.handlers.get(eventName);
+        if (eventHandlers) {
+            for (const handler of eventHandlers) {
+                handler(payload);
+            }
+        }
     }
-  }
 
-  /** Subscribes a handler to a specific event. */
-  public subscribe(eventName: string, handler: EventHandler): void {
-    if (!this.handlers.has(eventName)) {
-      this.handlers.set(eventName, new Set());
+    /** Registers a handler for a specific event. */
+    public on(eventName: string, handler: EventHandler): void {
+        if (!this.handlers.has(eventName)) {
+            this.handlers.set(eventName, new Set());
+        }
+        this.handlers.get(eventName)!.add(handler);
     }
-    this.handlers.get(eventName)!.add(handler);
-  }
 
-  /** Unsubscribes a handler from a specific event. */
-  public unsubscribe(eventName: string, handler: EventHandler): void {
-    const eventHandlers = this.handlers.get(eventName);
-    if (eventHandlers) {
-      eventHandlers.delete(handler);
+    /** Removes a handler from a specific event. */
+    public off(eventName: string, handler: EventHandler): void {
+        const eventHandlers = this.handlers.get(eventName);
+        if (eventHandlers) {
+            eventHandlers.delete(handler);
+        }
     }
-  }
 }
-

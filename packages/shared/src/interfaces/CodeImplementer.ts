@@ -1,10 +1,16 @@
-import type { PlanResult, QualityReport } from '../types/phases.types.js';
+import type { CodeChanges, CodebaseContext } from '../types/domain.types.js';
 
 /**
- * Implements code changes based on a plan.
+ * Generates code changes based on an approved plan.
+ * Matches 3-interfaces.md §6.
  */
 export interface CodeImplementer {
-  /** Implements the plan and returns a quality report. */
-  implement(plan: PlanResult): Promise<QualityReport>;
-}
+    /** Generate code changes for the full plan. */
+    implementPlan(planForAi: string, codebase: CodebaseContext): Promise<CodeChanges>;
 
+    /** Re-generate code incorporating PR review feedback. */
+    applyPrFeedback(planForAi: string, codebase: CodebaseContext, reviewComments: string): Promise<CodeChanges>;
+
+    /** Continue implementation after human clarification. */
+    answerClarification(planForAi: string, codebase: CodebaseContext, clarification: string): Promise<CodeChanges>;
+}

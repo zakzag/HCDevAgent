@@ -1,23 +1,28 @@
-import type { PullRequest } from '../types/domain.types.js';
+import type { CodeChanges, PrOptions, PrStatus, PullRequest } from '../types/domain.types.js';
 
 /**
- * Manages version control operations (branches, commits, PRs).
+ * Abstracts Git operations and remote platform API (e.g., GitHub).
+ * Matches 3-interfaces.md §7.
  */
 export interface VersionControl {
-  /** Creates a new branch from the default branch. */
-  createBranch(branchName: string): Promise<void>;
+    /** Create a new feature branch from base (default: main). */
+    createBranch(branchName: string, baseBranch?: string): Promise<void>;
 
-  /** Commits changes to the current branch. */
-  commitChanges(message: string, files: ReadonlyArray<string>): Promise<string>;
+    /** Stage file modifications in the working tree. */
+    applyChanges(changes: CodeChanges): Promise<void>;
 
-  /** Creates a pull request. */
-  createPullRequest(
-    title: string,
-    description: string,
-    sourceBranch: string,
-  ): Promise<PullRequest>;
+    /** Commit staged changes, returns commit SHA. */
+    commit(message: string): Promise<string>;
 
-  /** Gets the status of a pull request by ID. */
-  getPullRequestStatus(prId: string): Promise<string>;
+    /** Push branch to remote. */
+    push(branchName: string): Promise<void>;
+
+    /** Open a PR on the remote platform. */
+    createPullRequest(options: PrOptions): Promise<PullRequest>;
+
+    /** Check PR state (open, merged, changes requested). */
+    getPullRequestStatus(prId: string): Promise<PrStatus>;
+
+    /** Delete remote and local branch (cleanup after merge). */
+    deleteBranch(branchName: string): Promise<void>;
 }
-

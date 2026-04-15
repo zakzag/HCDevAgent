@@ -1,14 +1,14 @@
 /**
- * Writes updates to an issue tracker system.
+ * Low-level write adapter for the issue tracker (e.g., Jira REST API).
+ * Matches 3-interfaces.md §2.
  */
 export interface IssueWriter {
-  /** Transitions an issue to a new status. */
-  transitionIssue(issueKey: string, targetStatus: string): Promise<void>;
+    /** Move the issue to a new workflow status. */
+    transitionStatus(issueKey: string, statusName: string): Promise<void>;
 
-  /** Adds a comment to an issue. */
-  addComment(issueKey: string, body: string): Promise<void>;
+    /** Post a comment on the issue. */
+    addComment(issueKey: string, body: string): Promise<void>;
 
-  /** Updates custom fields on an issue. */
-  updateFields(issueKey: string, fields: Record<string, unknown>): Promise<void>;
+    /** Write a value to a custom Jira field. */
+    updateCustomField(issueKey: string, fieldName: string, value: string): Promise<void>;
 }
-

@@ -5,4 +5,4 @@ export { MockIssueWriter } from './MockIssueWriter.js';
 export { MockStorageAdapter } from './MockStorageAdapter.js';
 export { MockVersionControl } from './MockVersionControl.js';
 export { MockEventBus } from './MockEventBus.js';
-
+export { MockIssueTrackerOperations } from './MockIssueTrackerOperations.js';

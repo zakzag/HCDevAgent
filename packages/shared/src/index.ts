@@ -4,12 +4,15 @@ export type {
   Comment,
   CodeChanges,
   PullRequest,
+  PrOptions,
+  PrStatus,
+  CodebaseContext,
 } from './types/index.js';
 export type {
-  InvestigationResult,
-  PlanStep,
-  PlanResult,
+  CheckResult,
   QualityReport,
+  InvestigationResult,
+  PlanResult,
 } from './types/index.js';
 export type {
   ActiveIssue,
@@ -46,19 +49,21 @@ export {
   StorageError,
   ConfigError,
   ImplementationError,
+  NotImplementedError,
 } from './errors/index.js';
 
 // Constants
 export {
   WORKFLOW_STATUSES,
   EVENT_NAMES,
-  JIRA_FIELD_KEYS,
+  JIRA_CUSTOM_FIELDS,
   PHASE_NAMES,
   SYMBOLS,
 } from './constants/index.js';
 export type {
   WorkflowStatus,
   EventName,
+  JiraCustomField,
   PhaseName,
 } from './constants/index.js';
 
@@ -71,6 +76,6 @@ export {
   MockStorageAdapter,
   MockVersionControl,
   MockEventBus,
+  MockIssueTrackerOperations,
 } from './test/mocks/index.js';
 export { delay } from './test/helpers.js';
-

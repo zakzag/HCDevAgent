@@ -1,31 +1,51 @@
-import { injectable, inject } from 'inversify';
-import type { IssueInvestigator, Issue, InvestigationResult, Logger } from '@hcdevagent/shared';
-import { SYMBOLS } from '@hcdevagent/shared';
-import type { OpenAiClient } from '../../services/ai/OpenAiClient.js';
+import { injectable } from 'inversify';
+import type { IssueInvestigator, Issue, InvestigationResult } from '@hcdevagent/shared';
+
+/** All-passed quality report used by the stub. */
+const STUB_QUALITY_REPORT = {
+    clarity: { passed: true, summary: 'Stub: assumed clear' },
+    completeness: { passed: true, summary: 'Stub: assumed complete' },
+    ambiguity: { passed: true, summary: 'Stub: no ambiguity assumed' },
+    specificity: { passed: true, summary: 'Stub: assumed specific' },
+    conflictDetection: { passed: true, summary: 'Stub: no conflicts assumed' },
+    scope: { passed: true, summary: 'Stub: assumed well-scoped' },
+} as const;
 
 /**
- * Uses OpenAI to analyze an issue and produce investigation results.
+ * Stub implementation of IssueInvestigator that always returns ready.
+ * Used during Step 2 to prove the Conductor flow before the real AI investigator is built.
+ * Will be replaced by OpenAiIssueInvestigator in Step 3.
  */
 @injectable()
-export class OpenAiIssueInvestigator implements IssueInvestigator {
-  constructor(
-    @inject(SYMBOLS.OpenAiClient) private readonly aiClient: OpenAiClient,
-    @inject(SYMBOLS.Logger) private readonly logger: Logger,
-  ) {}
+export class StubIssueInvestigator implements IssueInvestigator {
+    /** Always returns ready with a placeholder Description For AI. */
+    public async investigate(issue: Issue, _relatedIssues?: ReadonlyArray<Issue>): Promise<InvestigationResult> {
+        const descriptionForAi = [
+            '## Summary',
+            issue.summary,
+            '',
+            '## Goal',
+            'Implement the changes described in this issue.',
+            '',
+            '## Requirements',
+            `- ${issue.description || 'See original issue description'}`,
+            '',
+            '## Acceptance Criteria',
+            '- [ ] Implementation matches the issue description',
+            '- [ ] All tests pass',
+            '',
+            '## Constraints',
+            'None identified (stub investigation).',
+            '',
+            '## Context',
+            `Original issue: ${issue.key}`,
+        ].join('\n');
 
-  /** Investigates an issue using AI analysis. */
-  public async investigate(issue: Issue): Promise<InvestigationResult> {
-    this.logger.info('Investigating issue', { issueKey: issue.key });
-    const systemPrompt = 'You are a senior software engineer analyzing a Jira issue.';
-    const userPrompt = `Analyze the following issue:\nTitle: ${issue.summary}\nDescription: ${issue.description}\n\nProvide: analysis, acceptance criteria, and suggested approach.`;
-    const response = await this.aiClient.complete(systemPrompt, userPrompt);
-    return {
-      issueKey: issue.key,
-      summary: issue.summary,
-      analysis: response,
-      acceptanceCriteria: [],
-      suggestedApproach: response,
-    };
-  }
+        return {
+            ready: true,
+            descriptionForAi,
+            clarificationQuestions: null,
+            qualityReport: STUB_QUALITY_REPORT,
+        };
+    }
 }
-
