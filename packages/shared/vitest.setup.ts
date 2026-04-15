@@ -1,0 +1,2 @@
+// Shared package vitest setup
+

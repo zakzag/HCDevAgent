@@ -1,0 +1,2 @@
+// Dashboard vitest setup
+
