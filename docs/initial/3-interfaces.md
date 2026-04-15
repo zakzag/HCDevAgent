@@ -4,7 +4,7 @@
 > either the **Service layer** (low-level adapters) or the **Module layer** (high-level,
 > workflow-aware). Implementations can be swapped without affecting consumers.
 >
-> See [initial-description.md](1-initial-description.md) for architecture overview and
+> See [initial-description.md](0-initial-description.md) for architecture overview and
 > [issue-workflow-events.md](2-issue-workflow-events.md) for the full event table.
 
 ---
@@ -247,7 +247,7 @@ In-process typed pub/sub system.
 
 ### Notes
 - Event names and payload types should be defined as a typed map in the shared types package.
-- See [initial-description.md](1-initial-description.md) Event Bus section for example events.
+- See [initial-description.md](0-initial-description.md) Event Bus section for example events.
 
 ---
 

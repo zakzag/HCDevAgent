@@ -4,7 +4,7 @@
 > primary data exchange mechanism between the agent and human reviewers — Jira is the source of
 > truth for all issue-level data.
 >
-> See [1-initial-description.md](1-initial-description.md) for workflow overview and
+> See [1-initial-description.md](0-initial-description.md) for workflow overview and
 > [3-interfaces.md](3-interfaces.md) for the `IssueWriter.updateCustomField` method.
 
 ---
