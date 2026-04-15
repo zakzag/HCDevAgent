@@ -7,7 +7,8 @@
 
 ## Context
 
-HCDevAgent is an autonomous agent that processes Jira issues, investigates them, generates implementation plans, and implements them with tests. The project needs a well-organized monorepo structure with clear separation of concerns.
+HCDevAgent is an autonomous agent that processes Jira issues, investigates them, generates implementation plans, and 
+implements them with tests. The project needs a well-organized monorepo structure with clear separation of concerns.
 
 ## Decision
 
@@ -24,11 +25,13 @@ We set up a pnpm-based monorepo with Turborepo for orchestration, organized into
 
 ### Key Technical Choices
 
-1. **InversifyJS** for dependency injection — all services are bound via `ContainerModule`s, enabling testability and loose coupling.
+1. **InversifyJS** for dependency injection — all services are bound via `ContainerModule`s, enabling testability and 
+   loose coupling.
 2. **Symbol-based injection tokens** in `@hcdevagent/shared/constants/symbols.ts` — shared across all packages.
 3. **Vitest aliases** for workspace packages during testing — avoids requiring a full build before running tests.
 4. **Vite library mode** for `shared`, `agent`, `api` packages; SPA mode for `dashboard`.
-5. **Test isolation** via `createTestContainer()` — factory function that builds a fresh DI container with all mock implementations.
+5. **Test isolation** via `createTestContainer()` — factory function that builds a fresh DI container with all mock 
+   implementations.
 
 ### Folder Structure
 
