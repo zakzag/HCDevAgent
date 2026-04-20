@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfigProvider, Logger } from '@hcdevagent/shared';
-import { IntegrationError } from '@hcdevagent/shared';
+import { IntegrationError, JIRA_CUSTOM_FIELDS } from '@hcdevagent/shared';
 import { JiraIssueWriter } from '../../services/issueTracker/JiraIssueWriter.js';
 
 /** Creates a mock ConfigProvider with Jira config. */
@@ -120,14 +120,14 @@ describe('JiraIssueWriter', () => {
         it('should send PUT request with field value', async () => {
             fetchMock.mockResolvedValue({ ok: true });
 
-            await writer.updateCustomField('TEST-1', 'description_for_ai', 'AI desc');
+            await writer.updateCustomField('TEST-1', JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI, 'AI desc');
 
             expect(fetchMock).toHaveBeenCalledTimes(1);
             const [url, options] = fetchMock.mock.calls[0];
             expect(url).toContain('/rest/api/3/issue/TEST-1');
             expect(options.method).toBe('PUT');
             const body = JSON.parse(options.body as string);
-            expect(body.fields.description_for_ai).toBe('AI desc');
+            expect(body.fields[JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]).toBe('AI desc');
         });
 
         it('should throw IntegrationError on failure', async () => {

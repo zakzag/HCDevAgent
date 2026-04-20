@@ -5,13 +5,16 @@ import { loggingModule } from './services/logging/logging.module.js';
 import { eventBusModule } from './services/eventBus/eventBus.module.js';
 import { issueTrackerModule } from './services/issueTracker/issueTracker.module.js';
 import { storageModule } from './services/storage/storage.module.js';
+import { aiModule } from './services/ai/ai.module.js';
+import { promptsModule } from './services/prompts/prompts.module.js';
 import { issueTrackerModuleModule } from './modules/issueTracker/issueTrackerModule.module.js';
 import { investigationModule } from './modules/investigation/investigation.module.js';
+import { planningModule } from './modules/planning/planning.module.js';
+import { implementationModule } from './modules/implementation/implementation.module.js';
 import { conductorModule } from './conductor/conductor.module.js';
 
 /**
  * Root DI container — single composition root for the agent package.
- * Loads only the modules needed for the current step.
  */
 const container = new Container();
 
@@ -22,12 +25,20 @@ container.load(
     eventBusModule,
     storageModule,
 
+    // AI client (must come before any module that injects AiClient)
+    aiModule,
+
+    // Prompt registry (must come before any module that injects PromptRegistry)
+    promptsModule,
+
     // Low-level adapters
     issueTrackerModule,
 
     // High-level modules
     issueTrackerModuleModule,
     investigationModule,
+    planningModule,
+    implementationModule,
 
     // Orchestrator
     conductorModule,

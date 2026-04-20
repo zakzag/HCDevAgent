@@ -12,8 +12,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js",
+    "dev": "cross-env LOG_TRANSPORT=pretty tsx --env-file=../../.env src/cli.ts",
+    "dev:file": "cross-env LOG_TRANSPORT=file tsx --env-file=../../.env src/cli.ts",
+    "dev:viewer": "cross-env LOG_TRANSPORT=file tsx --env-file=../../.env src/cli.ts & frontail --port 9101 logs/agent.log",
+    "start": "node --env-file=../../.env dist/cli.js",
     "build": "vite build",
     "test": "vitest run",
     "lint": "eslint src/",
@@ -21,21 +23,23 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
+    "@hcdevagent/shared": "workspace:*",
     "inversify": "^6.0.0",
-    "reflect-metadata": "^0.2.0",
-    "pino": "^9.0.0",
     "mongoose": "^8.0.0",
-    "runtypes": "^6.7.0",
-    "@hcdevagent/shared": "workspace:*"
+    "pino": "^9.0.0",
+    "reflect-metadata": "^0.2.0",
+    "runtypes": "^6.7.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
+    "cross-env": "^10.1.0",
+    "frontail": "^4.9.2",
+    "pino-pretty": "^11.0.0",
+    "rimraf": "^5.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "vite": "^5.4.0",
     "vite-plugin-dts": "^3.9.0",
-    "vitest": "^1.6.0",
-    "pino-pretty": "^11.0.0",
-    "@types/node": "^20.0.0",
-    "rimraf": "^5.0.0",
-    "tsx": "^4.0.0"
+    "vitest": "^1.6.0"
   }
 }

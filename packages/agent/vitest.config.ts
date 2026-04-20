@@ -4,6 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   resolve: {
     alias: {
+      '@hcdevagent/shared/test': resolve(__dirname, '../shared/src/test-utils.ts'),
       '@hcdevagent/shared': resolve(__dirname, '../shared/src/index.ts'),
     },
   },

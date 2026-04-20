@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import type { IssueReader, Issue, Comment, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS, IntegrationError, JIRA_CUSTOM_FIELDS } from '@hcdevagent/shared';
+import { JqlBuilder } from './JqlBuilder.js';
 
 /** Shape of a raw Jira issue from the API. */
 interface JiraIssueRaw {
@@ -20,6 +21,9 @@ interface JiraCommentRaw {
 /** Shape of the Jira search response. */
 interface JiraSearchResponse {
     readonly issues: ReadonlyArray<JiraIssueRaw>;
+    readonly isLast?: boolean;
+    readonly nextPageToken?: string;
+    readonly total?: number;
 }
 
 /** Shape of the Jira comments response. */
@@ -49,11 +53,22 @@ export class JiraIssueReader implements IssueReader {
     /** Fetch all issues currently in the given workflow status. */
     public async fetchIssuesByStatus(statusName: string): Promise<ReadonlyArray<Issue>> {
         this.logger.debug('Fetching issues by status', { statusName });
-        const jql = `status = "${statusName}" ORDER BY created ASC`;
-        const response = await this.jiraGet<JiraSearchResponse>(
-            `/rest/api/3/search?jql=${encodeURIComponent(jql)}&fields=*all`,
-        );
-        return response.issues.map((raw) => this.mapToIssue(raw));
+        const jql = new JqlBuilder()
+            .status(statusName)
+            .orderBy('created', 'ASC')
+            .build();
+        const issues: JiraIssueRaw[] = [];
+        let nextPageToken: string | undefined;
+        let isLast = false;
+
+        do {
+            const page = await this.jiraSearchPost<JiraSearchResponse>(jql, nextPageToken);
+            issues.push(...page.issues);
+            isLast = page.isLast ?? page.nextPageToken == null;
+            nextPageToken = page.nextPageToken;
+        } while (!isLast && nextPageToken != null);
+
+        return issues.map((raw) => this.mapToIssue(raw));
     }
 
     /** Fetch full issue details by key. */
@@ -90,6 +105,45 @@ export class JiraIssueReader implements IssueReader {
         this.logger.debug('Reading status', { issueKey });
         const issue = await this.getIssue(issueKey);
         return issue.status;
+    }
+
+    /**
+     * POST to the enhanced JQL search endpoint `/rest/api/3/search/jql`.
+     * Atlassian removed the legacy GET `/rest/api/3/search` endpoint (HTTP 410).
+     */
+    private async jiraSearchPost<T>(jql: string, nextPageToken?: string): Promise<T> {
+        const path = '/rest/api/3/search/jql';
+        const body = JSON.stringify({
+            jql,
+            fields: ['*all'],
+            ...(nextPageToken != null ? { nextPageToken } : {}),
+        });
+        try {
+            const response = await fetch(`${this.baseUrl}${path}`, {
+                method: 'POST',
+                headers: {
+                    Authorization: this.authHeader,
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body,
+            });
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                throw new IntegrationError(`Jira API returned ${response.status}`, {
+                    path,
+                    status: response.status,
+                    body: text,
+                });
+            }
+            return (await response.json()) as T;
+        } catch (error) {
+            if (error instanceof IntegrationError) throw error;
+            throw new IntegrationError('Failed to communicate with Jira API', {
+                path,
+                originalError: String(error),
+            });
+        }
     }
 
     /** Generic GET request to Jira API. */

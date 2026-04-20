@@ -16,5 +16,6 @@ export const SYMBOLS = {
   EventBus: Symbol.for('EventBus'),
   Conductor: Symbol.for('Conductor'),
   OpenAiClient: Symbol.for('OpenAiClient'),
+  AiClient: Symbol.for('AiClient'),
+  PromptRegistry: Symbol.for('PromptRegistry'),
 } as const;
-

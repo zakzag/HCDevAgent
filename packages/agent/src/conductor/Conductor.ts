@@ -116,7 +116,7 @@ export class Conductor {
 
         // 6. Handle investigation result
         if (result.ready && result.descriptionForAi) {
-            this.logger.info('Investigation complete — issue is ready for planning', { issueKey });
+            this.logger.info('Investigation complete - issue is ready for planning', { issueKey });
             await this.issueOps.moveToPlan(issueKey, result.descriptionForAi);
             this.eventBus.emit(EVENT_NAMES.INVESTIGATION_READY, { issueKey });
         } else if (!result.ready && result.clarificationQuestions) {

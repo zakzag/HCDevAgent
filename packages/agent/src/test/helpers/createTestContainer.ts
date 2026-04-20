@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { Container } from 'inversify';
 import {
     SYMBOLS,
+} from '@hcdevagent/shared';
+import {
     MockLogger,
     MockConfigProvider,
     MockIssueReader,
@@ -10,7 +12,7 @@ import {
     MockVersionControl,
     MockEventBus,
     MockIssueTrackerOperations,
-} from '@hcdevagent/shared';
+} from '@hcdevagent/shared/test';
 
 /**
  * Callback type for rebinding specific tokens in the test container.

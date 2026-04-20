@@ -9,4 +9,19 @@ export type { StorageAdapter } from './StorageAdapter.js';
 export type { EventBus } from './EventBus.js';
 export type { ConfigProvider } from './ConfigProvider.js';
 export type { Logger } from './Logger.js';
-
+export type { AiClient } from './AiClient.js';
+export type {
+    PromptRegistry,
+    PromptKey,
+    PromptVariables,
+    InvestigationSystemVars,
+    InvestigationUserVars,
+    PlanningSystemVars,
+    PlanningUserVars,
+    PlanningRefineSystemVars,
+    PlanningRefineUserVars,
+    ImplementationSystemVars,
+    ImplementationUserVars,
+    ImplementationPrFeedbackUserVars,
+    ImplementationClarificationUserVars,
+} from './PromptRegistry.js';

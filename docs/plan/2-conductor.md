@@ -31,7 +31,7 @@ slice: poll → pick → transition → log.
 | **shared — interfaces** | Rewrite `IssueTrackerOperations` — full method table from 3-interfaces.md §3 (fetchNextIssue, startInvestigation, markBlockedForPlanClarification, moveToPlan, markFailed, getCurrentStatus, etc.) | **Rewrite** |
 | **shared — interfaces** | Rewrite `StorageAdapter` — match 3-interfaces.md §8 (getActiveIssue, setActiveIssue, clearActiveIssue, addExecutionLog, addMetric, updateMetric, etc.) | **Rewrite** |
 | **shared — constants** | Rewrite `workflowStatuses.ts` — use the exact Jira status names from 0-initial-description.md (SELECTED FOR TRIAGE, ISSUE INVESTIGATION, BLOCKED FOR PLAN CLARIFICATION, PLAN, PLAN REVIEW, etc.) | **Rewrite** |
-| **shared — constants** | Add `jiraCustomFields.ts` — field keys from 4-jira-custom-fields.md (`description_for_ai`, `implementation_plan`, `implementation_plan_for_ai`, `branch_name`, `pr_url`, `failure_reason`) | **Rewrite** |
+| **shared — constants** | Add `jiraCustomFields.ts` — field keys from 4-jira-custom-fields.md (`customfield_10164`, `customfield_10197`, `customfield_10198`, `customfield_10199`, `customfield_10200`, `customfield_10201`) | **Rewrite** |
 | **shared — constants** | Rewrite `eventNames.ts` to match the workflow phases properly | **Rewrite** |
 | **shared — mocks** | Update all mock classes to match new interface signatures | **Rewrite** |
 | **agent — services/config** | Keep `EnvConfigProvider` as-is (already works) | Unchanged |

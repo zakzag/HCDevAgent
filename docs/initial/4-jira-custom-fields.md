@@ -13,12 +13,12 @@
 
 | # | Field Name | Jira Field Key | Written by | Read by | Phase |
 |---|---|---|---|---|---|
-| 1 | Description For AI | `description_for_ai` | Agent | Agent (Planning) | Investigation |
-| 2 | Implementation Plan | `implementation_plan` | Agent | Human | Planning |
-| 3 | Implementation Plan For AI | `implementation_plan_for_ai` | Agent | Agent (Implementation) | Planning |
-| 4 | Branch Name | `branch_name` | Agent | Human, Agent (recovery) | Implementation |
-| 5 | PR URL | `pr_url` | Agent | Human, Agent (recovery) | Implementation |
-| 6 | Failure Reason | `failure_reason` | Agent | Human | Failure |
+| 1 | Description For AI | `customfield_10164` | Agent | Agent (Planning) | Investigation |
+| 2 | Implementation Plan | `customfield_10197` | Agent | Human | Planning |
+| 3 | Implementation Plan For AI | `customfield_10198` | Agent | Agent (Implementation) | Planning |
+| 4 | Branch Name | `customfield_10199` | Agent | Human, Agent (recovery) | Implementation |
+| 5 | PR URL | `customfield_10200` | Agent | Human, Agent (recovery) | Implementation |
+| 6 | Failure Reason | `customfield_10201` | Agent | Human | Failure |
 
 ---
 
@@ -26,7 +26,7 @@
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `description_for_ai` |
+| **Jira field key** | `customfield_10164` |
 | **Type** | Multi-line text |
 | **Written during** | Phase 1 — Investigation (event #7) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
@@ -77,7 +77,7 @@ Relevant background information, related issues, or prior decisions.
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `implementation_plan` |
+| **Jira field key** | `customfield_10197` |
 | **Type** | Multi-line text |
 | **Written during** | Phase 2 — Planning (events #9) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
@@ -132,7 +132,7 @@ Any risks, assumptions, or questions that remain.
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `implementation_plan_for_ai` |
+| **Jira field key** | `customfield_10198` |
 | **Type** | Multi-line text |
 | **Written during** | Phase 2 — Planning (events #10, alongside `Implementation Plan`) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
@@ -206,7 +206,7 @@ Single-paragraph machine-readable summary derived from `Description For AI`.
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `branch_name` |
+| **Jira field key** | `customfield_10199` |
 | **Type** | Single-line text |
 | **Written during** | Phase 3 — Implementation (when the branch is created) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
@@ -234,7 +234,7 @@ Convention: `agent/<issueKey>` (configurable via `config.vcs.branchPattern`).
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `pr_url` |
+| **Jira field key** | `customfield_10200` |
 | **Type** | Single-line text (URL) |
 | **Written during** | Phase 3 — Implementation (when the PR is created, events #22–24) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
@@ -261,7 +261,7 @@ https://github.com/org/repo/pull/42
 
 | Property | Value |
 |---|---|
-| **Jira field key** | `failure_reason` |
+| **Jira field key** | `customfield_10201` |
 | **Type** | Multi-line text |
 | **Written during** | Failure (events #31, #33, #35, #37) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |

@@ -47,9 +47,9 @@ describe('shared package smoke test', () => {
 
     it('should export JIRA_CUSTOM_FIELDS', () => {
         expect(JIRA_CUSTOM_FIELDS).toBeDefined();
-        expect(JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI).toBe('description_for_ai');
-        expect(JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN).toBe('implementation_plan');
-        expect(JIRA_CUSTOM_FIELDS.FAILURE_REASON).toBe('failure_reason');
+        expect(JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI).toBe('customfield_10164');
+        expect(JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN).toBe('customfield_10197');
+        expect(JIRA_CUSTOM_FIELDS.FAILURE_REASON).toBe('customfield_10201');
     });
 
     it('should export PHASE_NAMES', () => {

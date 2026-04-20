@@ -64,10 +64,24 @@ describe('JiraIssueReader', () => {
     });
 
     describe('fetchIssuesByStatus', () => {
+        it('should use POST to /rest/api/3/search/jql endpoint', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ issues: [sampleJiraIssue], isLast: true }),
+            });
+
+            await reader.fetchIssuesByStatus('Selected for Triage');
+
+            expect(fetchMock).toHaveBeenCalledWith(
+                expect.stringContaining('/rest/api/3/search/jql'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
         it('should return mapped issues from search API', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({ issues: [sampleJiraIssue] }),
+                json: () => Promise.resolve({ issues: [sampleJiraIssue], isLast: true }),
             });
 
             const issues = await reader.fetchIssuesByStatus('Selected for Triage');
@@ -76,10 +90,27 @@ describe('JiraIssueReader', () => {
             expect(issues[0].summary).toBe('Test issue');
         });
 
+        it('should follow pagination using nextPageToken', async () => {
+            const secondIssue = { ...sampleJiraIssue, id: '10002', key: 'TEST-2' };
+            fetchMock
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve({ issues: [sampleJiraIssue], isLast: false, nextPageToken: 'page2' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve({ issues: [secondIssue], isLast: true }),
+                });
+
+            const issues = await reader.fetchIssuesByStatus('Selected for Triage');
+            expect(issues).toHaveLength(2);
+            expect(issues[1].key).toBe('TEST-2');
+        });
+
         it('should return empty array when no issues found', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({ issues: [] }),
+                json: () => Promise.resolve({ issues: [], isLast: true }),
             });
 
             const issues = await reader.fetchIssuesByStatus('Selected for Triage');
@@ -87,7 +118,11 @@ describe('JiraIssueReader', () => {
         });
 
         it('should throw IntegrationError on non-OK response', async () => {
-            fetchMock.mockResolvedValue({ ok: false, status: 500 });
+            fetchMock.mockResolvedValue({
+                ok: false,
+                status: 500,
+                text: () => Promise.resolve('Internal Server Error'),
+            });
             await expect(reader.fetchIssuesByStatus('Selected for Triage')).rejects.toThrow(IntegrationError);
         });
 

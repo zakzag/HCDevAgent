@@ -39,6 +39,20 @@ export type {
   EventBus,
   ConfigProvider,
   Logger,
+  AiClient,
+  PromptRegistry,
+  PromptKey,
+  PromptVariables,
+  InvestigationSystemVars,
+  InvestigationUserVars,
+  PlanningSystemVars,
+  PlanningUserVars,
+  PlanningRefineSystemVars,
+  PlanningRefineUserVars,
+  ImplementationSystemVars,
+  ImplementationUserVars,
+  ImplementationPrFeedbackUserVars,
+  ImplementationClarificationUserVars,
 } from './interfaces/index.js';
 
 // Errors
@@ -57,25 +71,16 @@ export {
   WORKFLOW_STATUSES,
   EVENT_NAMES,
   JIRA_CUSTOM_FIELDS,
+  JIRA_CUSTOM_FIELD_JQL_NAMES,
   PHASE_NAMES,
   SYMBOLS,
+  AI_PROVIDERS,
 } from './constants/index.js';
 export type {
   WorkflowStatus,
   EventName,
   JiraCustomField,
+  JiraCustomFieldJqlName,
   PhaseName,
+  AiProvider,
 } from './constants/index.js';
-
-// Test utilities
-export {
-  MockLogger,
-  MockConfigProvider,
-  MockIssueReader,
-  MockIssueWriter,
-  MockStorageAdapter,
-  MockVersionControl,
-  MockEventBus,
-  MockIssueTrackerOperations,
-} from './test/mocks/index.js';
-export { delay } from './test/helpers.js';

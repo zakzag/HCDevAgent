@@ -1,13 +1,13 @@
 import { injectable, inject } from 'inversify';
-import type { ConfigProvider, Logger } from '@hcdevagent/shared';
+import type { AiClient, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS } from '@hcdevagent/shared';
 
 /**
  * Client for communicating with the OpenAI API.
- * Provides a thin wrapper for prompt-based completions.
+ * Implements AiClient so it is interchangeable with GitHubCopilotClient.
  */
 @injectable()
-export class OpenAiClient {
+export class OpenAiClient implements AiClient {
   private readonly apiKey: string;
   private readonly model: string;
 
@@ -47,4 +47,3 @@ export class OpenAiClient {
     return data.choices[0]?.message.content ?? '';
   }
 }
-

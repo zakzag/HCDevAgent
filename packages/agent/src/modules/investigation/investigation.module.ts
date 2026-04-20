@@ -1,8 +1,8 @@
 import { ContainerModule } from 'inversify';
 import { SYMBOLS } from '@hcdevagent/shared';
-import { StubIssueInvestigator } from './OpenAiIssueInvestigator.js';
+import { CopilotIssueInvestigator } from './CopilotIssueInvestigator.js';
 
-/** DI module that binds the IssueInvestigator interface (stub for Step 2). */
+/** DI module that binds the IssueInvestigator interface. */
 export const investigationModule = new ContainerModule((bind) => {
-    bind(SYMBOLS.IssueInvestigator).to(StubIssueInvestigator).inSingletonScope();
+    bind(SYMBOLS.IssueInvestigator).to(CopilotIssueInvestigator).inSingletonScope();
 });
