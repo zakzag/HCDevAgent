@@ -11,6 +11,8 @@ export {
   JiraIssueReader,
   JiraIssueWriter,
   issueTrackerModule,
+  GitHubGitProvider,
+  LocalGitRepository,
   LocalGitVersionControl,
   versionControlModule,
   MongoStorageAdapter,
@@ -18,6 +20,7 @@ export {
   OpenAiClient,
   aiModule,
 } from './services/index.js';
+export type { GitProvider, GitRepository } from './services/index.js';
 export {
   IssueTrackerModule,
   issueTrackerModuleModule,

@@ -9,3 +9,5 @@ export type { PhaseName } from './phaseNames.js';
 export { SYMBOLS } from './symbols.js';
 export { AI_PROVIDERS } from './aiProviders.js';
 export type { AiProvider } from './aiProviders.js';
+export { VERSION_CONTROL_PROVIDERS } from './versionControlProviders.js';
+export type { VersionControlProvider } from './versionControlProviders.js';

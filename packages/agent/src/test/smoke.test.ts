@@ -23,6 +23,11 @@ describe('agent package smoke test', () => {
         expect(eventBus).toBeDefined();
     });
 
+    it('should resolve VersionControl from the production container', () => {
+        const versionControl = container.get(SYMBOLS.VersionControl);
+        expect(versionControl).toBeDefined();
+    });
+
     it('should resolve Conductor from the production container', () => {
         const conductor = container.get(SYMBOLS.Conductor);
         expect(conductor).toBeDefined();

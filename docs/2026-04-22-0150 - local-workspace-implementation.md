@@ -4,6 +4,10 @@
 **Status:** Implemented  
 **Affects:** Version Control Service, Agent Configuration
 
+> **Update (2026-04-23):** Provider-specific remote operations now live behind the
+> `GitProvider` abstraction. Local repository behaviour remains in the local git layer,
+> while GitHub-specific pull request logic is implemented by `GitHubGitProvider`.
+
 ## Overview
 
 Implemented local filesystem workspace support for the HCDevAgent, enabling the agent to work with a local git repository clone instead of relying solely on GitHub API operations.

@@ -5,6 +5,8 @@
 export const SYMBOLS = {
   Logger: Symbol.for('Logger'),
   ConfigProvider: Symbol.for('ConfigProvider'),
+  GitRepository: Symbol.for('GitRepository'),
+  GitProvider: Symbol.for('GitProvider'),
   IssueReader: Symbol.for('IssueReader'),
   IssueWriter: Symbol.for('IssueWriter'),
   IssueTrackerOperations: Symbol.for('IssueTrackerOperations'),

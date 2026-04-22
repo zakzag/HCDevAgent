@@ -5,6 +5,7 @@ import { loggingModule } from './services/logging/logging.module.js';
 import { eventBusModule } from './services/eventBus/eventBus.module.js';
 import { issueTrackerModule } from './services/issueTracker/issueTracker.module.js';
 import { storageModule } from './services/storage/storage.module.js';
+import { versionControlModule } from './services/versionControl/versionControl.module.js';
 import { aiModule } from './services/ai/ai.module.js';
 import { promptsModule } from './services/prompts/prompts.module.js';
 import { issueTrackerModuleModule } from './modules/issueTracker/issueTrackerModule.module.js';
@@ -24,6 +25,7 @@ container.load(
     loggingModule,
     eventBusModule,
     storageModule,
+    versionControlModule,
 
     // AI client (must come before any module that injects AiClient)
     aiModule,

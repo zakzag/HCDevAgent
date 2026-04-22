@@ -186,6 +186,16 @@ describe('EnvConfigProvider', () => {
             expect(provider.getRequired('GITHUB_TOKEN')).toBe('ghp_abc123');
         });
 
+        it('reads GIT_REPO_URL', () => {
+            vi.stubEnv('GIT_REPO_URL', 'https://example.com/acme/repo.git');
+            expect(provider.getRequired('GIT_REPO_URL')).toBe('https://example.com/acme/repo.git');
+        });
+
+        it('reads VERSION_CONTROL_PROVIDER', () => {
+            vi.stubEnv('VERSION_CONTROL_PROVIDER', 'github');
+            expect(provider.getRequired('VERSION_CONTROL_PROVIDER')).toBe('github');
+        });
+
         it('reads optional COPILOT_API_URL', () => {
             vi.stubEnv('COPILOT_API_URL', 'https://api.githubcopilot.com');
             expect(provider.getOptional('COPILOT_API_URL')).toBe('https://api.githubcopilot.com');

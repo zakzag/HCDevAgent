@@ -5,6 +5,7 @@ import {
     EVENT_NAMES,
     PHASE_NAMES,
     JIRA_CUSTOM_FIELDS,
+    VERSION_CONTROL_PROVIDERS,
     BaseError,
     ValidationError,
     IntegrationError,
@@ -19,6 +20,8 @@ describe('shared package smoke test', () => {
         expect(SYMBOLS).toBeDefined();
         expect(SYMBOLS.Logger).toBeDefined();
         expect(SYMBOLS.ConfigProvider).toBeDefined();
+        expect(SYMBOLS.GitRepository).toBeDefined();
+        expect(SYMBOLS.GitProvider).toBeDefined();
         expect(SYMBOLS.IssueReader).toBeDefined();
         expect(SYMBOLS.IssueWriter).toBeDefined();
         expect(SYMBOLS.IssueTrackerOperations).toBeDefined();
@@ -55,6 +58,11 @@ describe('shared package smoke test', () => {
     it('should export PHASE_NAMES', () => {
         expect(PHASE_NAMES).toBeDefined();
         expect(PHASE_NAMES.INVESTIGATION).toBe('investigation');
+    });
+
+    it('should export VERSION_CONTROL_PROVIDERS', () => {
+        expect(VERSION_CONTROL_PROVIDERS).toBeDefined();
+        expect(VERSION_CONTROL_PROVIDERS.GITHUB).toBe('github');
     });
 
     it('should export all error classes', () => {

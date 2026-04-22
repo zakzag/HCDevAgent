@@ -1,5 +1,7 @@
 export { MockLogger } from './MockLogger.js';
 export { MockConfigProvider } from './MockConfigProvider.js';
+export { MockGitRepository } from './MockGitRepository.js';
+export { MockGitProvider } from './MockGitProvider.js';
 export { MockIssueReader } from './MockIssueReader.js';
 export { MockIssueWriter } from './MockIssueWriter.js';
 export { MockStorageAdapter } from './MockStorageAdapter.js';

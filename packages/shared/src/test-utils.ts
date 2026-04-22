@@ -5,6 +5,8 @@
 export {
   MockLogger,
   MockConfigProvider,
+  MockGitRepository,
+  MockGitProvider,
   MockIssueReader,
   MockIssueWriter,
   MockStorageAdapter,

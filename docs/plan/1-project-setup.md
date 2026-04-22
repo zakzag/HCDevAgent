@@ -24,7 +24,7 @@ Create the following root files:
 - `turbo.json` — pipelines for `build`, `test`, `lint`, `typecheck`; `build` is a dependency of `test`
 - `tsconfig.base.json` — strict mode, `experimentalDecorators`, `emitDecoratorMetadata`, `target: ES2020`, `module: esnext`, `moduleResolution: bundler`, `skipLibCheck: true`
 - `.nvmrc` — Node 20
-- `.env.example` — placeholder keys: `JIRA_BASE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `AGENT_LOG_LEVEL`, `AGENT_POLL_INTERVAL_MS`
+- `.env.example` — placeholder keys: `JIRA_BASE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `VERSION_CONTROL_PROVIDER`, `GIT_REPO_URL`, `GIT_USER_NAME`, `GIT_USER_EMAIL`, `GITHUB_TOKEN`, `WORKSPACE_PATH`, `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `AGENT_LOG_LEVEL`, `AGENT_POLL_INTERVAL_MS`
 - `.prettierrc` — formatting standard
 
 ---

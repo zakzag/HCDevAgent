@@ -27,6 +27,8 @@ export type {
 } from './types/index.js';
 
 // Interfaces
+export type { GitRepository } from './interfaces/GitRepository.js';
+export type { GitProvider } from './interfaces/GitProvider.js';
 export type {
   IssueReader,
   IssueWriter,
@@ -75,6 +77,7 @@ export {
   PHASE_NAMES,
   SYMBOLS,
   AI_PROVIDERS,
+  VERSION_CONTROL_PROVIDERS,
 } from './constants/index.js';
 export type {
   WorkflowStatus,
@@ -83,4 +86,5 @@ export type {
   JiraCustomFieldJqlName,
   PhaseName,
   AiProvider,
+  VersionControlProvider,
 } from './constants/index.js';

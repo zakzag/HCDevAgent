@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import pino from 'pino';
- import { mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Logger, ConfigProvider } from '@hcdevagent/shared';
 import { SYMBOLS } from '@hcdevagent/shared';

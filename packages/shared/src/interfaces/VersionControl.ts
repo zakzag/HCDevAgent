@@ -1,7 +1,8 @@
 import type { CodeChanges, PrOptions, PrStatus, PullRequest } from '../types/domain.types.js';
 
 /**
- * Abstracts Git operations and remote platform API (e.g., GitHub).
+ * Facade that combines provider-agnostic local Git operations with
+ * provider-specific remote collaboration features (e.g., GitHub pull requests).
  * Matches 3-interfaces.md §7.
  */
 export interface VersionControl {
