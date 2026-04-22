@@ -135,10 +135,35 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             scope: parsed.qualityReport.scope,
         };
 
-        this.logger.debug('Investigation complete', {
+        // Log complete investigation result with quality report
+        this.logger.info('Investigation complete', {
             issueKey: issue.key,
             ready: parsed.ready,
+            qualityReport: {
+                clarity: { passed: qualityReport.clarity.passed, summary: qualityReport.clarity.summary },
+                completeness: { passed: qualityReport.completeness.passed, summary: qualityReport.completeness.summary },
+                ambiguity: { passed: qualityReport.ambiguity.passed, summary: qualityReport.ambiguity.summary },
+                specificity: { passed: qualityReport.specificity.passed, summary: qualityReport.specificity.summary },
+                conflictDetection: { passed: qualityReport.conflictDetection.passed, summary: qualityReport.conflictDetection.summary },
+                scope: { passed: qualityReport.scope.passed, summary: qualityReport.scope.summary },
+            },
         });
+
+        // Log the structured description if ready
+        if (parsed.ready && parsed.descriptionForAi) {
+            this.logger.info('Issue is READY for implementation', {
+                issueKey: issue.key,
+                descriptionForAi: parsed.descriptionForAi,
+            });
+        }
+
+        // Log clarification questions if not ready
+        if (!parsed.ready && parsed.clarificationQuestions && parsed.clarificationQuestions.length > 0) {
+            this.logger.info('Issue needs CLARIFICATION', {
+                issueKey: issue.key,
+                clarificationQuestions: parsed.clarificationQuestions,
+            });
+        }
 
         return {
             ready: parsed.ready,

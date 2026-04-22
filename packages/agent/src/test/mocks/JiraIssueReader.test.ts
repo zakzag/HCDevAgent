@@ -59,7 +59,7 @@ describe('JiraIssueReader', () => {
 
     beforeEach(() => {
         fetchMock = vi.fn();
-        global.fetch = fetchMock;
+        global.fetch = fetchMock as typeof fetch;
         reader = new JiraIssueReader(createMockConfig(), createMockLogger());
     });
 

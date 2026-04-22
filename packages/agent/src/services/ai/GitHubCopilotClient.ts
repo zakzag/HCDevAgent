@@ -16,12 +16,19 @@ interface ChatCompletionsResponse {
 }
 
 /**
- * AI client targeting the GitHub Copilot chat completions endpoint.
+ * AI client targeting the GitHub Models chat completions endpoint.
  * Uses the OpenAI-compatible REST API authenticated via a GitHub PAT.
  *
+ * The default endpoint is GitHub Models (https://models.inference.ai.azure.com),
+ * which accepts a standard GitHub Personal Access Token with the `models:read` scope.
+ *
+ * NOTE: The Copilot endpoint (https://api.githubcopilot.com) does NOT accept PATs —
+ * it requires an OAuth token from the Copilot extension flow. Use the GitHub Models
+ * endpoint for PAT-based access.
+ *
  * Config keys:
- *   GITHUB_TOKEN      (required) — PAT with Copilot access
- *   COPILOT_API_URL   (optional, default: https://api.githubcopilot.com)
+ *   GITHUB_TOKEN      (required) — PAT with `models:read` scope
+ *   COPILOT_API_URL   (optional, default: https://models.inference.ai.azure.com)
  *   COPILOT_MODEL     (optional, default: gpt-4o)
  */
 @injectable()
@@ -35,7 +42,7 @@ export class GitHubCopilotClient implements AiClient {
         @inject(SYMBOLS.Logger) private readonly logger: Logger,
     ) {
         const token = configProvider.getRequired('GITHUB_TOKEN');
-        this.apiUrl = configProvider.getOptional('COPILOT_API_URL') ?? 'https://api.githubcopilot.com';
+        this.apiUrl = configProvider.getOptional('COPILOT_API_URL') ?? 'https://models.inference.ai.azure.com';
         this.model = configProvider.getOptional('COPILOT_MODEL') ?? 'gpt-4o';
         this.authHeader = `Bearer ${token}`;
     }
@@ -45,7 +52,7 @@ export class GitHubCopilotClient implements AiClient {
      * and returns the raw response text.
      */
     public async complete(systemPrompt: string, userPrompt: string): Promise<string> {
-        this.logger.debug('Sending completion request to GitHub Copilot', { model: this.model });
+        this.logger.debug('Sending completion request to GitHub Models', { model: this.model });
 
         const url = `${this.apiUrl}/chat/completions`;
         const messages: ReadonlyArray<ChatMessage> = [
@@ -65,7 +72,7 @@ export class GitHubCopilotClient implements AiClient {
                 body: JSON.stringify({ model: this.model, messages }),
             });
         } catch (error) {
-            throw new IntegrationError('Failed to reach GitHub Copilot API', {
+            throw new IntegrationError('Failed to reach GitHub Models API', {
                 url,
                 originalError: String(error),
             });
@@ -73,7 +80,7 @@ export class GitHubCopilotClient implements AiClient {
 
         if (!response.ok) {
             const body = await response.text().catch(() => '');
-            throw new IntegrationError(`GitHub Copilot API returned ${response.status}`, {
+            throw new IntegrationError(`GitHub Models API returned ${response.status}`, {
                 url,
                 status: response.status,
                 body,
@@ -83,7 +90,7 @@ export class GitHubCopilotClient implements AiClient {
         const data = (await response.json()) as ChatCompletionsResponse;
         const content = data.choices[0]?.message.content ?? '';
 
-        this.logger.debug('Received response from GitHub Copilot');
+        this.logger.debug('Received response from GitHub Models');
 
         return content;
     }

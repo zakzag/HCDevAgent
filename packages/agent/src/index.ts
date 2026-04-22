@@ -11,7 +11,7 @@ export {
   JiraIssueReader,
   JiraIssueWriter,
   issueTrackerModule,
-  GitHubVersionControl,
+  LocalGitVersionControl,
   versionControlModule,
   MongoStorageAdapter,
   storageModule,
@@ -21,11 +21,12 @@ export {
 export {
   IssueTrackerModule,
   issueTrackerModuleModule,
-  OpenAiIssueInvestigator,
+  StubIssueInvestigator,
+  CopilotIssueInvestigator,
   investigationModule,
-  OpenAiPlanGenerator,
+  CopilotPlanGenerator,
   planningModule,
-  OpenAiCodeImplementer,
+  CopilotCodeImplementer,
   implementationModule,
 } from './modules/index.js';
 export { Conductor, conductorModule } from './conductor/index.js';

@@ -78,9 +78,9 @@ export class PinoLogger implements Logger {
     this.pinoInstance.warn(context ?? {}, message);
   }
 
-  /** Logs an error-level message. */
-  public error(message: string, context?: Record<string, unknown>): void {
-    this.pinoInstance.error(context ?? {}, message);
+  /** Logs an error-level message with optional Error object and context. */
+  public error(message: string, error?: Error, context?: Record<string, unknown>): void {
+    this.pinoInstance.error({ ...(context ?? {}), ...(error ? { err: error } : {}) }, message);
   }
 
   /** Creates a child logger with additional context. */

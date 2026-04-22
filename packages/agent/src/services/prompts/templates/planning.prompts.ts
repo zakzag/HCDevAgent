@@ -77,6 +77,15 @@ Respond with ONLY a valid JSON object — no markdown fences, no explanation:
   "planForAi": string
 }`,
 
+    /**
+     * Basic planning prompt.
+     * Used during initial plan creation.
+     * Parameters:
+     * - descriptionForAi: string - Structured description produced by investigation phase
+     *   Contains sections: Summary, Goal, Requirements, Acceptance Criteria, Constraints, Context
+     * - feedbackSection: string - (Optional) Human feedback for plan refinement
+     *   Empty string on first attempt, contains formatted feedback on refinement
+     */
     'planning.user': `Description For AI:
 \${descriptionForAi}\${feedbackSection}`,
 
@@ -89,6 +98,15 @@ Respond with ONLY a valid JSON object — no markdown fences, no explanation:
   "planForAi": string
 }`,
 
+    /**
+     * Plan refinement prompt when human rejects a plan.
+     * Used when transitioning from PLAN REVIEW back to PLAN status.
+     * Parameters:
+     * - existingPlanForAi: string - The machine-readable plan that was rejected
+     *   Full structured markdown with META, STEPS, TESTS, VERIFICATION sections
+     * - rejectionComment: string - Human feedback explaining why plan was rejected
+     *   Extracted from Jira issue comments when plan is rejected
+     */
     'planning.refine.user': `Existing plan (machine format):
 \${existingPlanForAi}
 

@@ -28,7 +28,8 @@
     "mongoose": "^8.0.0",
     "pino": "^9.0.0",
     "reflect-metadata": "^0.2.0",
-    "runtypes": "^6.7.0"
+    "runtypes": "^6.7.0",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

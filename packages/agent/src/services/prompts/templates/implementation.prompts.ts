@@ -23,11 +23,24 @@ Respond with ONLY a valid JSON object — no markdown fences, no explanation:
   "language": string    // primary programming language (e.g. "typescript")
 }`,
 
+    /**
+     * Basic implementation prompt.
+     * Parameters:
+     * - planForAi: string - Machine-readable implementation plan with step-by-step instructions
+     * - codebaseContext: string - Relevant code snippets, file structures, and dependencies
+     */
     'implementation.user': `Machine-readable plan:
 \${planForAi}
 
 \${codebaseContext}`,
 
+    /**
+     * Implementation prompt with PR review feedback.
+     * Parameters:
+     * - planForAi: string - Machine-readable implementation plan with step-by-step instructions
+     * - reviewComments: string - Code review feedback and suggestions from PR reviewers
+     * - codebaseContext: string - Relevant code snippets, file structures, and dependencies
+     */
     'implementation.pr-feedback.user': `Machine-readable plan:
 \${planForAi}
 
@@ -36,6 +49,13 @@ PR review feedback to address:
 
 \${codebaseContext}`,
 
+    /**
+     * Implementation prompt with human clarification.
+     * Parameters:
+     * - planForAi: string - Machine-readable implementation plan with step-by-step instructions
+     * - clarification: string - Additional clarification or requirements provided by human
+     * - codebaseContext: string - Relevant code snippets, file structures, and dependencies
+     */
     'implementation.clarification.user': `Machine-readable plan:
 \${planForAi}
 

@@ -43,7 +43,7 @@ describe('GitHubCopilotClient', () => {
 
     beforeEach(() => {
         fetchMock = vi.fn();
-        global.fetch = fetchMock;
+        global.fetch = fetchMock as typeof fetch;
         client = new GitHubCopilotClient(createMockConfig(), createMockLogger());
     });
 
@@ -101,7 +101,8 @@ describe('GitHubCopilotClient', () => {
 
             await client.complete('sys', 'usr');
 
-            const callBody = JSON.parse((fetchMock.mock.calls[0] as never[][])[1]['body'] as string) as { model: string };
+            const [, callOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+            const callBody = JSON.parse(callOptions['body'] as string) as { model: string };
             expect(callBody.model).toBe('gpt-4o');
         });
 

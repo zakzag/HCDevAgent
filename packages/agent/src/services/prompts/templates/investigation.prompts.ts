@@ -54,6 +54,17 @@ Respond with ONLY a valid JSON object — no markdown fences, no explanation. Us
   }
 }`,
 
+    /**
+     * Investigation prompt for analyzing a Jira issue.
+     * Parameters:
+     * - issueKey: string - The Jira issue key (e.g., "PROJ-123")
+     * - summary: string - The issue title/summary
+     * - description: string - The full issue description/body
+     * - status: string - Current Jira status (e.g., "Selected for Triage")
+     * - labels: string - Comma-separated list of issue labels
+     * - commentsSection: string - (Optional) Formatted section containing issue comments
+     * - relatedIssuesSection: string - (Optional) Formatted section containing related/linked issues
+     */
     'investigation.user': `Issue Key: \${issueKey}
 Summary: \${summary}
 Description:

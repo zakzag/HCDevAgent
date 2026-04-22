@@ -33,7 +33,7 @@ describe('JiraIssueWriter', () => {
 
     beforeEach(() => {
         fetchMock = vi.fn();
-        global.fetch = fetchMock;
+        global.fetch = fetchMock as typeof fetch;
         writer = new JiraIssueWriter(createMockConfig(), createMockLogger());
     });
 
