@@ -113,6 +113,8 @@ Phase 1 (Investigation). Uses the AI Agent Service internally.
 | `descriptionForAi` | `string \| null` | Enhanced AI-friendly description (only when `ready === true`) |
 | `clarificationQuestions` | `string[] \| null` | List of questions for the human (only when `ready === false`) |
 | `qualityReport` | `QualityReport` | Detailed breakdown of each quality check |
+| `contextUsed` | `InvestigationContext` | Project description, code chunks, and rendered investigator settings used during the AI call |
+| `autoFixabilityReport` | `AutoFixabilityReport` | Weighted decision describing whether the issue looks safe for mostly autonomous implementation |
 
 ### `QualityReport`
 
@@ -132,6 +134,42 @@ Phase 1 (Investigation). Uses the AI Agent Service internally.
 | `passed` | `boolean` | Whether this check passed |
 | `summary` | `string` | Short explanation of the finding |
 
+### `InvestigationContext`
+
+| Field | Type | Description |
+|---|---|---|
+| `projectDescription` | `string` | Repo-level description loaded from `WORKSPACE_PATH/.agent/project-description.md` (or fallback README) |
+| `codeChunksContext` | `string` | Relevant code snippets collected from the target workspace |
+| `investigatorSettingsContext` | `string` | Prompt-friendly rendering of the repo-specific investigator settings |
+| `relevantFiles` | `string[]` | Relative file paths selected as code anchors |
+
+### `AutoFixabilityReport`
+
+| Field | Type | Description |
+|---|---|---|
+| `decision` | `'autoFixable' \| 'needsHumanReview' \| 'needsHumanClarification'` | Final routing verdict after applying repo settings to AI scores |
+| `score` | `number` | Weighted overall automation score (0–100) |
+| `threshold` | `number` | Minimum score required by the repository settings |
+| `blockingReasons` | `string[]` | Reasons why the issue should still get human attention |
+| `assumptions` | `string[]` | Important assumptions inferred during investigation |
+| `suggestedFollowUp` | `string[]` | Suggested next steps or clarification prompts |
+| `metrics` | `AutoFixabilityMetrics` | Raw metric scores used to compute the final decision |
+
+### `AutoFixabilityMetrics`
+
+Each metric is a `{ score: number, summary: string }` pair, where `score` is on a 0–100 scale.
+
+| Field | Description |
+|---|---|
+| `acceptanceCriteriaCoverage` | How well expected outcomes and acceptance criteria are covered |
+| `reproductionClarity` | How clearly the current or desired behavior can be reproduced |
+| `codeContextCoverage` | How well the gathered repository context anchors the issue in real code |
+| `changeLocality` | Whether the work appears localized or cross-cutting |
+| `dependencyConfidence` | Confidence that required dependencies and integrations are understood |
+| `testability` | How easily the change can be verified with tests |
+| `blastRadiusConfidence` | Confidence that unintended side effects are limited |
+| `humanDecisionIndependence` | Whether implementation can proceed without product/business decisions |
+
 ### Notes
 - `relatedIssues` is optional — the Conductor can pass recent/active issues for conflict detection.
 - When `ready === false`, the Conductor uses `clarificationQuestions` to post a Jira comment and
@@ -139,6 +177,8 @@ Phase 1 (Investigation). Uses the AI Agent Service internally.
   with the updated issue (which now includes the human's reply in the comments).
 - The AI Agent Service provides the underlying LLM call — this interface orchestrates the prompt
   and parses the structured response.
+- Repo-specific investigator thresholds, risky paths, and review labels live under
+  `WORKSPACE_PATH/.agent/project-settings.json` so the metric model stays general while routing stays project-aware.
 
 ---
 

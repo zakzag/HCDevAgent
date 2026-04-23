@@ -8,6 +8,8 @@ export {
   loggingModule,
   InProcessEventBus,
   eventBusModule,
+  WorkspaceInvestigationContextProvider,
+  investigationContextModule,
   JiraIssueReader,
   JiraIssueWriter,
   issueTrackerModule,
@@ -20,7 +22,15 @@ export {
   OpenAiClient,
   aiModule,
 } from './services/index.js';
-export type { GitProvider, GitRepository } from './services/index.js';
+export type {
+  GitProvider,
+  GitRepository,
+  ProjectSettings,
+  InvestigatorProjectSettings,
+  InvestigatorContextCollectionSettings,
+  PlannerProjectSettings,
+  ImplementerProjectSettings,
+} from './services/index.js';
 export {
   IssueTrackerModule,
   issueTrackerModuleModule,

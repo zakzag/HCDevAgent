@@ -20,4 +20,5 @@ export const SYMBOLS = {
   OpenAiClient: Symbol.for('OpenAiClient'),
   AiClient: Symbol.for('AiClient'),
   PromptRegistry: Symbol.for('PromptRegistry'),
+  InvestigationContextProvider: Symbol.for('InvestigationContextProvider'),
 } as const;

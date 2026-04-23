@@ -39,9 +39,11 @@ The prompts are used in three main phases of the issue processing workflow:
 
 **Process Details:**
 - Evaluates the issue on six quality dimensions: clarity, completeness, ambiguity, specificity, conflict detection, and scope
+- Uses workspace-backed project description, code chunks, and repo-specific investigator settings as additional context
+- Scores eight auto-fixability metrics that estimate how safely the issue can be handled with minimal human interaction
 - If ALL dimensions pass: produces a structured "Description For AI" field
 - If ANY dimension fails: requests clarification from humans
-- Outputs a quality report with pass/fail for each dimension
+- Outputs both a quality report and scored auto-fixability metrics
 
 **Parameters:** None (system prompt)
 
@@ -58,7 +60,19 @@ The prompts are used in three main phases of the issue processing workflow:
     "specificity": { "passed": boolean, "summary": string },
     "conflictDetection": { "passed": boolean, "summary": string },
     "scope": { "passed": boolean, "summary": string }
-  }
+  },
+  "autoFixabilityMetrics": {
+    "acceptanceCriteriaCoverage": { "score": number, "summary": string },
+    "reproductionClarity": { "score": number, "summary": string },
+    "codeContextCoverage": { "score": number, "summary": string },
+    "changeLocality": { "score": number, "summary": string },
+    "dependencyConfidence": { "score": number, "summary": string },
+    "testability": { "score": number, "summary": string },
+    "blastRadiusConfidence": { "score": number, "summary": string },
+    "humanDecisionIndependence": { "score": number, "summary": string }
+  },
+  "assumptions": string[],
+  "suggestedFollowUp": string[]
 }
 ```
 
@@ -83,6 +97,9 @@ The prompts are used in three main phases of the issue processing workflow:
 | `description` | `string` | The full issue description/body | Multi-line markdown text describing the feature or bug |
 | `status` | `string` | Current Jira workflow status | `"Selected for Triage"`, `"Issue Investigation"` |
 | `labels` | `string` | Comma-separated list of issue labels | `"backend, security, high-priority"`, `""` (empty if no labels) |
+| `projectDescription` | `string` | Repository-level description loaded from `WORKSPACE_PATH/.agent/project-description.md` | Markdown overview of the target repository |
+| `codeChunksContext` | `string` | Relevant code snippets collected from the target workspace | `"File: src/index.ts ..."` |
+| `investigatorSettingsContext` | `string` | Rendered repo-specific investigator settings | Thresholds, risky paths, labels requiring human review |
 | `commentsSection` | `string` (optional) | Formatted section containing issue comments | `"\n\nComments:\n- User: Can you clarify..."` or `""` (empty if no comments) |
 | `relatedIssuesSection` | `string` (optional) | Formatted section containing linked issues | `"\n\nRelated Issues:\n- PROJ-122: Related feature"` or `""` (empty if no related issues) |
 
@@ -93,12 +110,22 @@ Summary: ${summary}
 Description:
 ${description}
 Status: ${status}
-Labels: ${labels}${commentsSection}${relatedIssuesSection}
+Labels: ${labels}
+
+Project Description:
+${projectDescription}
+
+Relevant Code Chunks:
+${codeChunksContext}
+
+Repo-Specific Investigator Settings:
+${investigatorSettingsContext}${commentsSection}${relatedIssuesSection}
 ```
 
 **Notes:**
 - `commentsSection` and `relatedIssuesSection` are pre-formatted strings that include their own section headers
 - Empty strings are used when there are no comments or related issues
+- The investigator combines general metrics with repo-specific settings after the AI call; the prompt receives the settings so the model can justify its scores in the right project context
 
 ---
 

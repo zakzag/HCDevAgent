@@ -116,12 +116,21 @@ export class Conductor {
 
         // 6. Handle investigation result
         if (result.ready && result.descriptionForAi) {
-            this.logger.info('Investigation complete - issue is ready for planning', { issueKey });
+            this.logger.info('Investigation complete - issue is ready for planning', {
+                issueKey,
+                autoFixabilityDecision: result.autoFixabilityReport.decision,
+                autoFixabilityScore: result.autoFixabilityReport.score,
+            });
             await this.issueOps.moveToPlan(issueKey, result.descriptionForAi);
             this.eventBus.emit(EVENT_NAMES.INVESTIGATION_READY, { issueKey });
         } else if (!result.ready && result.clarificationQuestions) {
             const questions = result.clarificationQuestions.join('\n\n');
-            this.logger.info('Investigation needs clarification', { issueKey, questionCount: result.clarificationQuestions.length });
+            this.logger.info('Investigation needs clarification', {
+                issueKey,
+                questionCount: result.clarificationQuestions.length,
+                autoFixabilityDecision: result.autoFixabilityReport.decision,
+                blockingReasons: result.autoFixabilityReport.blockingReasons,
+            });
             await this.issueOps.markBlockedForPlanClarification(issueKey, questions);
             this.eventBus.emit(EVENT_NAMES.INVESTIGATION_BLOCKED, { issueKey });
         } else {

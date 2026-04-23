@@ -5,25 +5,13 @@ import type {
     Issue,
     InvestigationResult,
     QualityReport,
+    InvestigationContextProvider,
     Logger,
     PromptRegistry,
 } from '@hcdevagent/shared';
-import { SYMBOLS, IntegrationError } from '@hcdevagent/shared';
-
-/** Raw shape expected from the AI JSON response for investigation. */
-interface InvestigationAiResponse {
-    readonly ready: boolean;
-    readonly descriptionForAi: string | null;
-    readonly clarificationQuestions: ReadonlyArray<string> | null;
-    readonly qualityReport: {
-        readonly clarity: { readonly passed: boolean; readonly summary: string };
-        readonly completeness: { readonly passed: boolean; readonly summary: string };
-        readonly ambiguity: { readonly passed: boolean; readonly summary: string };
-        readonly specificity: { readonly passed: boolean; readonly summary: string };
-        readonly conflictDetection: { readonly passed: boolean; readonly summary: string };
-        readonly scope: { readonly passed: boolean; readonly summary: string };
-    };
-}
+import { SYMBOLS } from '@hcdevagent/shared';
+import { parseInvestigationResponse } from './parseInvestigationResponse.js';
+import { scoreAutoFixability } from './scoreAutoFixability.js';
 
 /**
  * Builds the pre-formatted comments section string for the user prompt template.
@@ -53,31 +41,6 @@ const buildRelatedIssuesSection = (relatedIssues?: ReadonlyArray<Issue>): string
 };
 
 /**
- * Strips markdown code fences (```json ... ```) from a string if present.
- * AI models sometimes wrap JSON in fences despite being told not to.
- */
-const stripCodeFences = (raw: string): string => {
-    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    return fenced ? fenced[1].trim() : raw.trim();
-};
-
-/**
- * Validates that a parsed AI response conforms to InvestigationAiResponse.
- */
-const isValidAiResponse = (value: unknown): value is InvestigationAiResponse => {
-    if (typeof value !== 'object' || value === null) return false;
-    const v = value as Record<string, unknown>;
-    if (typeof v['ready'] !== 'boolean') return false;
-    if (typeof v['qualityReport'] !== 'object' || v['qualityReport'] === null) return false;
-    const qr = v['qualityReport'] as Record<string, unknown>;
-    const dims = ['clarity', 'completeness', 'ambiguity', 'specificity', 'conflictDetection', 'scope'];
-    return dims.every((dim) => {
-        const d = qr[dim] as Record<string, unknown> | undefined;
-        return d !== undefined && typeof d['passed'] === 'boolean' && typeof d['summary'] === 'string';
-    });
-};
-
-/**
  * Investigates a Jira issue using the configured AI client.
  * Evaluates quality dimensions and produces a structured "Description For AI"
  * used by the Planning phase, or returns clarification questions if the issue
@@ -89,11 +52,15 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
         @inject(SYMBOLS.AiClient) private readonly aiClient: AiClient,
         @inject(SYMBOLS.Logger) private readonly logger: Logger,
         @inject(SYMBOLS.PromptRegistry) private readonly prompts: PromptRegistry,
+        @inject(SYMBOLS.InvestigationContextProvider)
+        private readonly contextProvider: InvestigationContextProvider,
     ) {}
 
     /** Analyses the issue and returns an InvestigationResult. */
     public async investigate(issue: Issue, relatedIssues?: ReadonlyArray<Issue>): Promise<InvestigationResult> {
         this.logger.debug('Investigating issue', { issueKey: issue.key });
+
+        const preparedContext = await this.contextProvider.loadContext(issue);
 
         const systemPrompt = this.prompts.getPrompt('investigation.system', {});
         const userPrompt = this.prompts.getPrompt('investigation.user', {
@@ -102,29 +69,15 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             description: issue.description || '(no description)',
             status: issue.status,
             labels: issue.labels.join(', ') || 'none',
+            projectDescription: preparedContext.contextUsed.projectDescription,
+            codeChunksContext: preparedContext.contextUsed.codeChunksContext,
+            investigatorSettingsContext: preparedContext.contextUsed.investigatorSettingsContext,
             commentsSection: buildCommentsSection(issue),
             relatedIssuesSection: buildRelatedIssuesSection(relatedIssues),
         });
 
         const raw = await this.aiClient.complete(systemPrompt, userPrompt);
-        const cleaned = stripCodeFences(raw);
-
-        let parsed: unknown;
-        try {
-            parsed = JSON.parse(cleaned);
-        } catch {
-            throw new IntegrationError('AI returned invalid JSON during investigation', {
-                issueKey: issue.key,
-                raw: cleaned.slice(0, 500),
-            });
-        }
-
-        if (!isValidAiResponse(parsed)) {
-            throw new IntegrationError('AI investigation response has unexpected shape', {
-                issueKey: issue.key,
-                raw: cleaned.slice(0, 500),
-            });
-        }
+        const parsed = parseInvestigationResponse(raw, issue.key);
 
         const qualityReport: QualityReport = {
             clarity: parsed.qualityReport.clarity,
@@ -134,11 +87,22 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             conflictDetection: parsed.qualityReport.conflictDetection,
             scope: parsed.qualityReport.scope,
         };
+        const autoFixabilityReport = scoreAutoFixability({
+            ready: parsed.ready,
+            metrics: parsed.autoFixabilityMetrics,
+            automationSettings: preparedContext.automationSettings,
+            issue,
+            contextUsed: preparedContext.contextUsed,
+            assumptions: parsed.assumptions,
+            suggestedFollowUp: parsed.suggestedFollowUp,
+        });
 
-        // Log complete investigation result with quality report
         this.logger.info('Investigation complete', {
             issueKey: issue.key,
             ready: parsed.ready,
+            autoFixabilityDecision: autoFixabilityReport.decision,
+            autoFixabilityScore: autoFixabilityReport.score,
+            relevantFiles: preparedContext.contextUsed.relevantFiles,
             qualityReport: {
                 clarity: { passed: qualityReport.clarity.passed, summary: qualityReport.clarity.summary },
                 completeness: { passed: qualityReport.completeness.passed, summary: qualityReport.completeness.summary },
@@ -149,15 +113,14 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             },
         });
 
-        // Log the structured description if ready
         if (parsed.ready && parsed.descriptionForAi) {
-            this.logger.info('Issue is READY for implementation', {
+            this.logger.info('Issue is ready for planning after investigation', {
                 issueKey: issue.key,
                 descriptionForAi: parsed.descriptionForAi,
+                autoFixabilityDecision: autoFixabilityReport.decision,
             });
         }
 
-        // Log clarification questions if not ready
         if (!parsed.ready && parsed.clarificationQuestions && parsed.clarificationQuestions.length > 0) {
             this.logger.info('Issue needs CLARIFICATION', {
                 issueKey: issue.key,
@@ -170,6 +133,8 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             descriptionForAi: parsed.descriptionForAi ?? null,
             clarificationQuestions: parsed.clarificationQuestions ?? null,
             qualityReport,
+            contextUsed: preparedContext.contextUsed,
+            autoFixabilityReport,
         };
     }
 }

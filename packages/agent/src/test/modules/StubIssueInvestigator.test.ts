@@ -46,5 +46,17 @@ describe('StubIssueInvestigator', () => {
         const result = await investigator.investigate(testIssue, [testIssue]);
         expect(result.ready).toBe(true);
     });
+
+    it('should return a default context payload', async () => {
+        const result = await investigator.investigate(testIssue);
+        expect(result.contextUsed.projectDescription).toContain('Stub');
+        expect(result.contextUsed.codeChunksContext).toContain('Stub');
+    });
+
+    it('should mark the stub result as auto-fixable', async () => {
+        const result = await investigator.investigate(testIssue);
+        expect(result.autoFixabilityReport.decision).toBe('autoFixable');
+        expect(result.autoFixabilityReport.score).toBe(100);
+    });
 });
 

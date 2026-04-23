@@ -89,6 +89,30 @@ const createMockInvestigator = (): IssueInvestigator => ({
             conflictDetection: { passed: true, summary: 'No conflicts' },
             scope: { passed: true, summary: 'Well-scoped' },
         },
+        contextUsed: {
+            projectDescription: 'Project description',
+            codeChunksContext: 'File: src/index.ts',
+            investigatorSettingsContext: 'Settings',
+            relevantFiles: ['src/index.ts'],
+        },
+        autoFixabilityReport: {
+            decision: 'autoFixable',
+            score: 90,
+            threshold: 72,
+            blockingReasons: [],
+            assumptions: [],
+            suggestedFollowUp: [],
+            metrics: {
+                acceptanceCriteriaCoverage: { score: 90, summary: 'Covered' },
+                reproductionClarity: { score: 90, summary: 'Clear' },
+                codeContextCoverage: { score: 90, summary: 'Anchored in code' },
+                changeLocality: { score: 90, summary: 'Localized' },
+                dependencyConfidence: { score: 90, summary: 'Known dependencies' },
+                testability: { score: 90, summary: 'Testable' },
+                blastRadiusConfidence: { score: 90, summary: 'Low blast radius' },
+                humanDecisionIndependence: { score: 90, summary: 'Independent' },
+            },
+        },
     } satisfies InvestigationResult),
 });
 
@@ -212,6 +236,30 @@ describe('Conductor', () => {
                     specificity: { passed: true, summary: 'OK' },
                     conflictDetection: { passed: true, summary: 'OK' },
                     scope: { passed: true, summary: 'OK' },
+                },
+                contextUsed: {
+                    projectDescription: 'Project description',
+                    codeChunksContext: 'File: src/index.ts',
+                    investigatorSettingsContext: 'Settings',
+                    relevantFiles: ['src/index.ts'],
+                },
+                autoFixabilityReport: {
+                    decision: 'needsHumanClarification',
+                    score: 35,
+                    threshold: 72,
+                    blockingReasons: ['Needs clarification'],
+                    assumptions: [],
+                    suggestedFollowUp: ['Ask for expected output'],
+                    metrics: {
+                        acceptanceCriteriaCoverage: { score: 30, summary: 'Missing criteria' },
+                        reproductionClarity: { score: 40, summary: 'Unclear reproduction' },
+                        codeContextCoverage: { score: 60, summary: 'Some context' },
+                        changeLocality: { score: 75, summary: 'Looks localized' },
+                        dependencyConfidence: { score: 30, summary: 'Dependencies unknown' },
+                        testability: { score: 35, summary: 'Tests unclear' },
+                        blastRadiusConfidence: { score: 55, summary: 'Risk uncertain' },
+                        humanDecisionIndependence: { score: 20, summary: 'Needs human decision' },
+                    },
                 },
             } satisfies InvestigationResult);
         });

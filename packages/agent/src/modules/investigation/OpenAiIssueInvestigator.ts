@@ -11,6 +11,18 @@ const STUB_QUALITY_REPORT = {
     scope: { passed: true, summary: 'Stub: assumed well-scoped' },
 } as const;
 
+/** All-high auto-fixability metrics used by the stub. */
+const STUB_AUTO_FIXABILITY_METRICS = {
+    acceptanceCriteriaCoverage: { score: 100, summary: 'Stub: fully covered' },
+    reproductionClarity: { score: 100, summary: 'Stub: fully reproducible' },
+    codeContextCoverage: { score: 100, summary: 'Stub: context assumed sufficient' },
+    changeLocality: { score: 100, summary: 'Stub: assumed localized' },
+    dependencyConfidence: { score: 100, summary: 'Stub: dependencies assumed known' },
+    testability: { score: 100, summary: 'Stub: assumed testable' },
+    blastRadiusConfidence: { score: 100, summary: 'Stub: low-risk change assumed' },
+    humanDecisionIndependence: { score: 100, summary: 'Stub: no human decision needed' },
+} as const;
+
 /**
  * Stub implementation of IssueInvestigator that always returns ready.
  * Used during Step 2 to prove the Conductor flow before the real AI investigator is built.
@@ -46,6 +58,21 @@ export class StubIssueInvestigator implements IssueInvestigator {
             descriptionForAi,
             clarificationQuestions: null,
             qualityReport: STUB_QUALITY_REPORT,
+            contextUsed: {
+                projectDescription: 'Stub project description',
+                codeChunksContext: 'Stub code context',
+                investigatorSettingsContext: 'Stub investigator settings',
+                relevantFiles: [],
+            },
+            autoFixabilityReport: {
+                decision: 'autoFixable',
+                score: 100,
+                threshold: 72,
+                blockingReasons: [],
+                assumptions: ['Stub investigator assumes all required details are present.'],
+                suggestedFollowUp: [],
+                metrics: STUB_AUTO_FIXABILITY_METRICS,
+            },
         };
     }
 }

@@ -40,12 +40,17 @@ describe('InMemoryPromptRegistry', () => {
                 description: 'Some description',
                 status: 'Open',
                 labels: 'backend',
+                projectDescription: 'Project description',
+                codeChunksContext: 'File: src/index.ts',
+                investigatorSettingsContext: 'Investigator settings',
                 commentsSection: '',
                 relatedIssuesSection: '',
             });
             expect(result).toContain('TEST-1');
             expect(result).toContain('Some summary');
             expect(result).toContain('Some description');
+            expect(result).toContain('Project description');
+            expect(result).toContain('src/index.ts');
         });
 
         it('includes commentsSection verbatim in investigation.user', () => {
@@ -55,6 +60,9 @@ describe('InMemoryPromptRegistry', () => {
                 description: 'desc',
                 status: 'Open',
                 labels: 'none',
+                projectDescription: 'Project description',
+                codeChunksContext: 'Code chunks',
+                investigatorSettingsContext: 'Settings',
                 commentsSection: '\n\nComments:\n  [Alice]: hello',
                 relatedIssuesSection: '',
             });

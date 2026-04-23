@@ -3,6 +3,7 @@ import { Container } from 'inversify';
 import { configModule } from './services/config/config.module.js';
 import { loggingModule } from './services/logging/logging.module.js';
 import { eventBusModule } from './services/eventBus/eventBus.module.js';
+import { investigationContextModule } from './services/investigationContext/investigationContext.module.js';
 import { issueTrackerModule } from './services/issueTracker/issueTracker.module.js';
 import { storageModule } from './services/storage/storage.module.js';
 import { versionControlModule } from './services/versionControl/versionControl.module.js';
@@ -24,6 +25,7 @@ container.load(
     configModule,
     loggingModule,
     eventBusModule,
+    investigationContextModule,
     storageModule,
     versionControlModule,
 

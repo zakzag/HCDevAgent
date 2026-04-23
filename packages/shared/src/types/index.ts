@@ -1,7 +1,16 @@
 export type { Issue, Comment, CodeChanges, PullRequest, PrOptions, PrStatus, CodebaseContext } from './domain.types.js';
 export type {
     CheckResult,
+    ScoredCheckResult,
     QualityReport,
+    AutoFixabilityMetricKey,
+    AutoFixabilityMetrics,
+    AutoFixabilityWeights,
+    InvestigatorAutomationSettings,
+    InvestigationContext,
+    PreparedInvestigationContext,
+    AutoFixabilityDecision,
+    AutoFixabilityReport,
     InvestigationResult,
     PlanResult,
 } from './phases.types.js';

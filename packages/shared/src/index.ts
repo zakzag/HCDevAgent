@@ -10,7 +10,16 @@ export type {
 } from './types/index.js';
 export type {
   CheckResult,
+  ScoredCheckResult,
   QualityReport,
+  AutoFixabilityMetricKey,
+  AutoFixabilityMetrics,
+  AutoFixabilityWeights,
+  InvestigatorAutomationSettings,
+  InvestigationContext,
+  PreparedInvestigationContext,
+  AutoFixabilityDecision,
+  AutoFixabilityReport,
   InvestigationResult,
   PlanResult,
 } from './types/index.js';
@@ -42,6 +51,7 @@ export type {
   ConfigProvider,
   Logger,
   AiClient,
+  InvestigationContextProvider,
   PromptRegistry,
   PromptKey,
   PromptVariables,

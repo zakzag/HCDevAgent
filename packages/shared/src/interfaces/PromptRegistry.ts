@@ -24,6 +24,12 @@ export interface InvestigationUserVars {
     readonly description: string;
     readonly status: string;
     readonly labels: string;
+    /** Project-level description loaded from the configured workspace. */
+    readonly projectDescription: string;
+    /** Relevant code snippets loaded from the configured workspace. */
+    readonly codeChunksContext: string;
+    /** Repo-specific investigator settings rendered for prompt use. */
+    readonly investigatorSettingsContext: string;
     /** Pre-formatted comments block, or empty string when there are no comments. */
     readonly commentsSection: string;
     /** Pre-formatted related issues block, or empty string when there are none. */
