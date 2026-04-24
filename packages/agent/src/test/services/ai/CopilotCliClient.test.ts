@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Logger } from '@hcdevagent/shared';
 import { IntegrationError } from '@hcdevagent/shared';
@@ -85,12 +86,27 @@ describe('CopilotCliClient', () => {
             expect(args[args.indexOf('--model') + 1]).toBe('gpt-5-mini');
         });
 
+        it('logs the selected model and role when AI is called', async () => {
+            baseline.runner.queueResult({ stdout: 'Hello result' });
+
+            await baseline.client.complete('sys', 'usr', { role: 'investigation' });
+
+            expect(baseline.logger.info).toHaveBeenCalledWith('AI request model selected', {
+                provider: 'copilot-cli',
+                model: 'gpt-5.4',
+                role: 'investigation',
+            });
+        });
+
         it('always passes --no-color', async () => {
             baseline.runner.queueResult({ stdout: 'Hello result' });
             await baseline.client.complete('sys', 'usr');
             const [, args] = baseline.runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
             expect(args).toContain('--no-color');
             expect(args).toContain('--silent');
+            expect(args).toContain('--no-custom-instructions');
+            expect(args).toContain('--no-remote');
+            expect(args).toContain('--disable-builtin-mcps');
         });
 
         it('passes --allow-all-tools only when COPILOT_CLI_ALLOW_TOOLS is truthy', async () => {
@@ -104,6 +120,7 @@ describe('CopilotCliClient', () => {
             await enabled.client.complete('sys', 'usr');
             [, args] = enabled.runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
             expect(args).toContain('--allow-all-tools');
+            expect(args).not.toContain('--disable-builtin-mcps');
         });
 
         it('sends the combined system + user prompt via stdin instead of argv', async () => {
@@ -142,7 +159,7 @@ describe('CopilotCliClient', () => {
             expect(bin).toBe('C:/tools/copilot.exe');
         });
 
-        it('passes cwd from COPILOT_CLI_WORKING_DIR or WORKSPACE_PATH and NO_COLOR env', async () => {
+        it('uses a neutral cwd for tool-free calls and passes NO_COLOR env', async () => {
             baseline.runner.queueResult({ stdout: 'Hello result' });
             await baseline.client.complete('sys', 'usr');
             const call = baseline.runner.run.mock.calls[0] as [
@@ -150,11 +167,65 @@ describe('CopilotCliClient', () => {
                 ReadonlyArray<string>,
                 { cwd?: string; env?: Record<string, string>; timeoutMs?: number; stdin?: string },
             ];
-            expect(call[2].cwd).toBe('C:/work');
+            expect(call[2].cwd).toBe(tmpdir());
             expect(call[2].env?.NO_COLOR).toBe('1');
             expect(call[2].env?.TERM).toBe('dumb');
             expect(call[2].timeoutMs).toBe(5_000);
             expect(call[2].stdin).toBeTypeOf('string');
+        });
+
+        it('strips agent auth and provider env vars from the Copilot subprocess', async () => {
+            const { client, runner } = buildClient({
+                AI_PROVIDER: 'copilot-cli',
+                COPILOT_API_URL: 'https://models.inference.ai.azure.com',
+                GITHUB_TOKEN: 'ghp-secret',
+                OPENAI_API_KEY: 'sk-secret',
+                WORKSPACE_PATH: 'C:/work',
+            });
+            runner.queueResult({ stdout: 'Hello result' });
+
+            await client.complete('sys', 'usr');
+
+            const call = runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { env?: Record<string, string | undefined> },
+            ];
+            expect(call[2].env?.GITHUB_TOKEN).toBeUndefined();
+            expect(call[2].env?.OPENAI_API_KEY).toBeUndefined();
+            expect(call[2].env?.COPILOT_API_URL).toBeUndefined();
+            expect(call[2].env?.AI_PROVIDER).toBeUndefined();
+            expect(call[2].env?.WORKSPACE_PATH).toBeUndefined();
+            expect(call[2].env?.NO_COLOR).toBe('1');
+            expect(call[2].env?.FORCE_COLOR).toBe('0');
+        });
+
+        it('uses WORKSPACE_PATH as cwd when tools are enabled', async () => {
+            const { client, runner } = buildClient({ COPILOT_CLI_ALLOW_TOOLS: 'true' });
+            runner.queueResult({ stdout: 'Hello result' });
+
+            await client.complete('sys', 'usr');
+
+            const call = runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { cwd?: string },
+            ];
+            expect(call[2].cwd).toBe('C:/work');
+        });
+
+        it('prefers explicit COPILOT_CLI_WORKING_DIR over neutral cwd selection', async () => {
+            const { client, runner } = buildClient({ COPILOT_CLI_WORKING_DIR: 'C:/explicit-cwd' });
+            runner.queueResult({ stdout: 'Hello result' });
+
+            await client.complete('sys', 'usr');
+
+            const call = runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { cwd?: string },
+            ];
+            expect(call[2].cwd).toBe('C:/explicit-cwd');
         });
 
         it('passes long prompts through stdin without inflating the argument list', async () => {
@@ -172,7 +243,7 @@ describe('CopilotCliClient', () => {
             expect(call[2].stdin).toContain(longPrompt);
         });
 
-        it('omits cwd when configured working-directory values are blank', async () => {
+        it('falls back to the neutral cwd when workspace-related values are blank', async () => {
             const { client, runner } = buildClient({
                 COPILOT_CLI_WORKING_DIR: '',
                 WORKSPACE_PATH: '',
@@ -186,7 +257,7 @@ describe('CopilotCliClient', () => {
                 ReadonlyArray<string>,
                 { cwd?: string; env?: Record<string, string>; timeoutMs?: number },
             ];
-            expect(call[2].cwd).toBeUndefined();
+            expect(call[2].cwd).toBe(tmpdir());
         });
 
         it('falls back to the default binary when COPILOT_CLI_BIN is blank', async () => {
@@ -250,6 +321,18 @@ describe('CopilotCliClient', () => {
             });
         });
 
+        it('detects auth failures reported on stdout', async () => {
+            baseline.runner.queueResult({
+                stdout: 'Authentication required. Please run copilot auth login.',
+                stderr: '',
+                exitCode: 1,
+            });
+
+            await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
+                message: expect.stringContaining('not authenticated'),
+            });
+        });
+
         it('detects rate-limit messages from stderr', async () => {
             baseline.runner.queueResult({
                 stdout: '',
@@ -258,6 +341,18 @@ describe('CopilotCliClient', () => {
             });
             await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
                 message: expect.stringContaining('rate limited'),
+            });
+        });
+
+        it('detects command-line length messages reported on stdout', async () => {
+            baseline.runner.queueResult({
+                stdout: 'The command line is too long.',
+                stderr: '',
+                exitCode: 1,
+            });
+
+            await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
+                message: expect.stringContaining('command line limit exceeded'),
             });
         });
 
@@ -274,14 +369,46 @@ describe('CopilotCliClient', () => {
             });
         });
 
+        it('retries once without cwd after a silent failure and succeeds', async () => {
+            const overridden = buildClient({ COPILOT_CLI_WORKING_DIR: 'C:/work' });
+            overridden.runner
+                .queueResult({ stdout: '', stderr: '', exitCode: 1 })
+                .queueResult({ stdout: 'Recovered result' });
+
+            const result = await overridden.client.complete('s', 'u');
+
+            expect(result).toBe('Recovered result');
+            expect(overridden.runner.run).toHaveBeenCalledTimes(2);
+
+            const firstCall = overridden.runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { cwd?: string },
+            ];
+            const secondCall = overridden.runner.run.mock.calls[1] as [
+                string,
+                ReadonlyArray<string>,
+                { cwd?: string },
+            ];
+
+            expect(firstCall[2].cwd).toBe('C:/work');
+            expect(secondCall[2].cwd).toBe(tmpdir());
+            expect(secondCall[1]).toContain('--disable-builtin-mcps');
+            expect(secondCall[1]).toContain('--no-remote');
+        });
+
         it('throws on non-zero exit code without auth/rate-limit markers', async () => {
             baseline.runner.queueResult({
-                stdout: '',
+                stdout: 'usage: copilot [options] [command]',
                 stderr: 'something else went wrong',
                 exitCode: 2,
             });
             await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
                 message: expect.stringContaining('exited with code 2'),
+                context: expect.objectContaining({
+                    stdoutTail: expect.stringContaining('usage: copilot'),
+                    stderrTail: expect.stringContaining('something else went wrong'),
+                }),
             });
         });
 

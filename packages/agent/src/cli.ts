@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 import { container } from './container.js';
 import { Conductor } from './conductor/Conductor.js';
+import { logStartupPaths } from './bootstrap/logStartupPaths.js';
 import { SYMBOLS } from '@hcdevagent/shared';
-import type { Logger } from '@hcdevagent/shared';
+import type { ConfigProvider, Logger } from '@hcdevagent/shared';
 
 /**
  * CLI entry point for the HCDevAgent agent.
@@ -11,6 +12,8 @@ import type { Logger } from '@hcdevagent/shared';
  */
 const main = async (): Promise<void> => {
     const logger = container.get<Logger>(SYMBOLS.Logger);
+    const configProvider = container.get<ConfigProvider>(SYMBOLS.ConfigProvider);
+    logStartupPaths(logger, configProvider);
     const conductor = container.get<Conductor>(SYMBOLS.Conductor);
 
     const shutdown = async (): Promise<void> => {

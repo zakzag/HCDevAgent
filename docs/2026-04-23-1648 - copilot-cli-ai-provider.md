@@ -31,7 +31,20 @@ Add a third `AI_PROVIDER` option, `copilot-cli`, implemented by
 - `--model` is added only when configured
 - `--silent`, `--no-color`, plus `NO_COLOR=1 / TERM=dumb / CI=1` force plain
   scripting-friendly output
+- `--no-custom-instructions` is always passed so repository-local Copilot
+  instruction files do not override the machine-consumable prompts used by the
+  agent
+- `--no-remote` is always passed because the agent never uses Copilot remote
+  session control
 - tools are denied by default; `COPILOT_CLI_ALLOW_TOOLS=true` opts in
+- when tools are denied, `--disable-builtin-mcps` is also passed so background
+  MCP initialization cannot interfere with plain prompt/response requests
+- for tool-free runs, the CLI is launched from a neutral working directory
+  instead of the target repository so repo-scoped Copilot agents and startup
+  hooks do not break machine-consumable completions
+- the subprocess environment is sanitized so agent/provider variables and PAT
+  credentials (for example `GITHUB_TOKEN`) are not inherited by the CLI; it
+  must authenticate using its own `copilot auth login` session
 - stdin is closed immediately so the CLI cannot block waiting for interaction
 - on Windows, bare commands such as `copilot` are resolved to concrete
   executables like `copilot.cmd` before spawning; `.cmd` / `.bat` shims are
@@ -66,6 +79,11 @@ Negative:
   (`copilot auth login`) — not suitable for stateless CI runners
 - CLI output shape can change across versions, so the parser is deliberately
   lenient and instrumented with diagnostics
+- on failures, the provider inspects both stdout and stderr because the CLI can
+  report usage/auth diagnostics on stdout while leaving stderr empty
+- if the CLI still exits non-zero with empty stdout/stderr, the provider retries
+  once in a neutral cwd and attaches the latest Copilot process-log tail to the
+  resulting integration error for supportability
 - stdin transport is now part of the provider contract, so future CLI changes
   to piped non-interactive input would need a compatibility review
 

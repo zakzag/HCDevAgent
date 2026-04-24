@@ -128,6 +128,16 @@ bind(SYMBOLS.VersionControl).to(LocalGitVersionControl).inSingletonScope();
 7. **PR created** → GitHub API creates pull request
 8. **Review process** → PR status checked via GitHub API
 
+### Startup diagnostics
+
+At startup, the agent now logs both:
+
+- the Node.js process working directory (`process.cwd()`)
+- the configured repository workspace path from `WORKSPACE_PATH`
+
+This makes it easier to distinguish the agent's own launch directory from the
+repository directory it analyzes and mutates.
+
 ## API Alignment
 
 The implementation correctly uses the existing type definitions:
@@ -211,6 +221,11 @@ To verify the implementation:
 
 2. **Check logs for initialization:**
    ```
+    [INFO] Agent startup paths resolved
+        processWorkingDirectory: "E:\projects\AI\HCDevAgent\packages\agent"
+        repositoryWorkingDirectory: "E:\projects\AI\AIDEV-TEST"
+        workspacePath: "E:\projects\AI\AIDEV-TEST"
+
    [INFO] LocalGitVersionControl initialized
        workspacePath: "E:\projects\AI\AIDEV-TEST"
        owner: "zakzag"
