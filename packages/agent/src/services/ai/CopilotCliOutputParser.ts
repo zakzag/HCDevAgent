@@ -3,6 +3,13 @@
  * Exposed to callers so they can log why a result looks unusual,
  * without the parser itself depending on a logger.
  */
+import {
+    ANSI_PATTERN,
+    ASSISTANT_MARKER_PATTERN,
+    BOM_PATTERN,
+    STATUS_LINE_PATTERNS,
+} from './constants/copilotCliOutputParser.constants.js';
+
 export interface CopilotCliParserDiagnostics {
     readonly strippedAnsi: boolean;
     readonly strippedBom: boolean;
@@ -17,24 +24,6 @@ export interface CopilotCliParseResult {
     readonly diagnostics: CopilotCliParserDiagnostics;
 }
 
-// eslint-disable-next-line no-control-regex
-const ANSI_PATTERN = /\x1B\[[0-?]*[ -/]*[@-~]/g;
-const BOM_PATTERN = /^\uFEFF/;
-
-/** Spinner frames and status decorations produced by the CLI's progress UI. */
-const STATUS_LINE_PATTERNS: ReadonlyArray<RegExp> = [
-    /^\s*[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●◌◍◎○◆◇◈★☆✔✓✖✗✦✧]\s+/u,
-    /^\s*(?:thinking|working|running|planning|executing|analyzing|loading|streaming)\b.*$/i,
-    /^\s*using\s+model\s*:?.*$/i,
-    /^\s*model\s*:\s*\S+\s*$/i,
-    /^\s*session\s+(?:id|ended|started).*$/i,
-    /^\s*cost\s*:.*$/i,
-    /^\s*tokens?\s*:.*$/i,
-    /^\s*\[\d+(?:\.\d+)?s]\s*$/i,
-    /^\s*(?:done|ok|ready)\.?\s*$/i,
-];
-
-const ASSISTANT_MARKER_PATTERN = /^\s*(?:assistant|answer|response|copilot)\s*[:>]\s*/i;
 
 const stripAnsi = (value: string): { out: string; changed: boolean } => {
     const out = value.replace(ANSI_PATTERN, '');

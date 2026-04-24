@@ -1,13 +1,7 @@
-import type { AiCompletionOptions, AiModelRole, ConfigProvider } from '@hcdevagent/shared';
+import type { AiCompletionOptions, ConfigProvider } from '@hcdevagent/shared';
+import { AI_ROLE_MODEL_ENV_KEYS } from './constants/aiModelSelector.constants.js';
 
-/** Maps each AI role to its optional environment-variable model override. */
-export const AI_ROLE_MODEL_ENV_KEYS: Readonly<Record<AiModelRole, string>> = {
-    investigation: 'AI_MODEL_INVESTIGATION',
-    planning: 'AI_MODEL_PLANNING',
-    implementation: 'AI_MODEL_IMPLEMENTATION',
-    commentSummary: 'AI_MODEL_COMMENT_SUMMARY',
-    descriptionForAi: 'AI_MODEL_DESCRIPTION_FOR_AI',
-};
+export { AI_ROLE_MODEL_ENV_KEYS } from './constants/aiModelSelector.constants.js';
 
 const normalizeModel = (value: string | undefined): string | undefined => {
     const trimmed = value?.trim();
@@ -39,4 +33,3 @@ export class AiModelSelector {
         return normalizeModel(fallbackModel);
     }
 }
-
