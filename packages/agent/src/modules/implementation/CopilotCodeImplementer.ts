@@ -7,67 +7,9 @@ import type {
     Logger,
     PromptRegistry,
 } from '@hcdevagent/shared';
-import { SYMBOLS, IntegrationError } from '@hcdevagent/shared';
-
-/** Raw shape expected from the AI JSON response for code implementation. */
-interface CodeChangesAiResponse {
-    readonly filePath: string;
-    readonly diff: string;
-    readonly language: string;
-}
-
-
-const buildCodebaseContext = (codebase: CodebaseContext): string => {
-    const lines = [`Codebase structure:\n${codebase.structure}`];
-    for (const file of codebase.files) {
-        lines.push(`\nFile: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``);
-    }
-    return lines.join('\n');
-};
-
-/**
- * Validates that a parsed AI response conforms to CodeChangesAiResponse.
- */
-const isValidCodeResponse = (value: unknown): value is CodeChangesAiResponse => {
-    if (typeof value !== 'object' || value === null) return false;
-    const v = value as Record<string, unknown>;
-    return (
-        typeof v['filePath'] === 'string' &&
-        typeof v['diff'] === 'string' &&
-        typeof v['language'] === 'string'
-    );
-};
-
-/**
- * Strips markdown code fences from AI response if present.
- */
-const stripCodeFences = (raw: string): string => {
-    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    return fenced ? fenced[1].trim() : raw.trim();
-};
-
-/**
- * Parses and validates the AI response into CodeChanges.
- */
-const parseResponse = (raw: string, context: string): CodeChanges => {
-    const cleaned = stripCodeFences(raw);
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(cleaned);
-    } catch {
-        throw new IntegrationError('AI returned invalid JSON during implementation', {
-            context,
-            raw: cleaned.slice(0, 500),
-        });
-    }
-    if (!isValidCodeResponse(parsed)) {
-        throw new IntegrationError('AI implementation response has unexpected shape', {
-            context,
-            raw: cleaned.slice(0, 500),
-        });
-    }
-    return { filePath: parsed.filePath, diff: parsed.diff, language: parsed.language };
-};
+import { SYMBOLS } from '@hcdevagent/shared';
+import { buildCodebaseContext } from './buildCodebaseContext.js';
+import { parseImplementationResponse } from './implementationResponseParser.js';
 
 /**
  * Generates code changes based on an approved machine-readable plan
@@ -92,7 +34,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
         });
 
         const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
-        const result = parseResponse(raw, 'implementPlan');
+        const result = parseImplementationResponse(raw, 'implementPlan');
 
         this.logger.debug('Implementation complete', { filePath: result.filePath });
         return result;
@@ -114,7 +56,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
         });
 
         const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
-        const result = parseResponse(raw, 'applyPrFeedback');
+        const result = parseImplementationResponse(raw, 'applyPrFeedback');
 
         this.logger.debug('PR feedback applied', { filePath: result.filePath });
         return result;
@@ -136,7 +78,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
         });
 
         const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
-        const result = parseResponse(raw, 'answerClarification');
+        const result = parseImplementationResponse(raw, 'answerClarification');
 
         this.logger.debug('Clarification incorporated', { filePath: result.filePath });
         return result;

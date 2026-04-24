@@ -10,35 +10,10 @@ import type {
     PromptRegistry,
 } from '@hcdevagent/shared';
 import { SYMBOLS } from '@hcdevagent/shared';
+import { buildCommentsSection, buildRelatedIssuesSection } from './investigationPromptSections.js';
 import { parseInvestigationResponse } from './parseInvestigationResponse.js';
 import { scoreAutoFixability } from './scoreAutoFixability.js';
 
-/**
- * Builds the pre-formatted comments section string for the user prompt template.
- * Returns an empty string when there are no comments.
- */
-const buildCommentsSection = (issue: Issue): string => {
-    if (issue.comments.length === 0) return '';
-    const lines = ['\n\nComments:'];
-    for (const comment of issue.comments) {
-        lines.push(`  [${comment.author}]: ${comment.body}`);
-    }
-    return lines.join('\n');
-};
-
-/**
- * Builds the pre-formatted related issues section string for the user prompt template.
- * Returns an empty string when there are no related issues.
- */
-const buildRelatedIssuesSection = (relatedIssues?: ReadonlyArray<Issue>): string => {
-    if (!relatedIssues || relatedIssues.length === 0) return '';
-    const lines = ['\n\nRelated Issues:'];
-    for (const related of relatedIssues) {
-        lines.push(`  ${related.key}: ${related.summary}`);
-    }
-
-    return lines.join('\n');
-};
 
 /**
  * Investigates a Jira issue using the configured AI client.
