@@ -30,13 +30,13 @@ export class IssueTrackerModule implements IssueTrackerOperations {
     /** Transition issue to ISSUE INVESTIGATION. */
     public async startInvestigation(issueKey: string): Promise<void> {
         this.logger.info('Starting investigation', { issueKey });
-        await this.writer.transitionStatus(issueKey, WORKFLOW_STATUSES.ISSUE_INVESTIGATION);
+        await this.transitionStatusIfNeeded(issueKey, WORKFLOW_STATUSES.ISSUE_INVESTIGATION);
     }
 
     /** Transition to BLOCKED FOR PLAN CLARIFICATION + post comment with questions. */
     public async markBlockedForPlanClarification(issueKey: string, questions: string): Promise<void> {
         this.logger.info('Marking blocked for plan clarification', { issueKey });
-        await this.writer.transitionStatus(issueKey, WORKFLOW_STATUSES.BLOCKED_FOR_PLAN_CLARIFICATION);
+        await this.transitionStatusIfNeeded(issueKey, WORKFLOW_STATUSES.BLOCKED_FOR_PLAN_CLARIFICATION);
         await this.writer.addComment(issueKey, questions);
     }
 
@@ -44,14 +44,14 @@ export class IssueTrackerModule implements IssueTrackerOperations {
     public async moveToPlan(issueKey: string, descriptionForAi: string): Promise<void> {
         this.logger.info('Moving to Plan', { issueKey });
         await this.writer.updateCustomField(issueKey, JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI, descriptionForAi);
-        await this.writer.transitionStatus(issueKey, WORKFLOW_STATUSES.PLAN);
+        await this.transitionStatusIfNeeded(issueKey, WORKFLOW_STATUSES.PLAN);
     }
 
     /** Transition to FAILURE + write Failure Reason field + comment. */
     public async markFailed(issueKey: string, reason: string): Promise<void> {
         this.logger.info('Marking issue as failed', { issueKey, reason });
         await this.writer.updateCustomField(issueKey, JIRA_CUSTOM_FIELDS.FAILURE_REASON, reason);
-        await this.writer.transitionStatus(issueKey, WORKFLOW_STATUSES.FAILURE);
+        await this.transitionStatusIfNeeded(issueKey, WORKFLOW_STATUSES.FAILURE);
         await this.writer.addComment(issueKey, `Agent failure: ${reason}`);
     }
 
@@ -137,5 +137,24 @@ export class IssueTrackerModule implements IssueTrackerOperations {
     /** Transition to PR CHANGES REQUESTED + comment. */
     public async markPrChangesRequested(issueKey: string, reviewComment: string): Promise<void> {
         throw new NotImplementedError('markPrChangesRequested', { issueKey });
+    }
+
+    /**
+     * Transitions an issue only when it is not already in the requested status.
+     * This keeps the workflow idempotent when Jira has already been updated externally.
+     */
+    private async transitionStatusIfNeeded(issueKey: string, targetStatus: string): Promise<void> {
+        const currentStatus = await this.reader.getStatus(issueKey);
+
+        if (currentStatus.toLowerCase() === targetStatus.toLowerCase()) {
+            this.logger.info('Skipping issue transition because the issue is already in the target status', {
+                issueKey,
+                currentStatus,
+                targetStatus,
+            });
+            return;
+        }
+
+        await this.writer.transitionStatus(issueKey, targetStatus);
     }
 }

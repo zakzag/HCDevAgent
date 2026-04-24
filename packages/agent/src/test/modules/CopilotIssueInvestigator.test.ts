@@ -62,6 +62,45 @@ const makeReadyResponse = () => JSON.stringify({
     suggestedFollowUp: ['Proceed directly to planning and implementation.'],
 });
 
+const makeStructuredReadyResponse = () => JSON.stringify({
+    ready: true,
+    descriptionForAi: {
+        summary: 'Initialize the monorepo structure with required components.',
+        goal: 'Provide the frontend and backend baseline for future implementation work.',
+        requirements: [
+            'Create frontend/ and backend/ folders',
+            'Add repository documentation',
+        ],
+        acceptanceCriteria: [
+            'The monorepo contains the expected top-level folders',
+            'Documentation explains how to work with the repository',
+        ],
+        constraints: 'Keep the existing monorepo and toolchain decisions intact.',
+        context: 'This task bootstraps the repository for later feature work.',
+    },
+    clarificationQuestions: null,
+    qualityReport: {
+        clarity: { passed: true, summary: 'Clear' },
+        completeness: { passed: true, summary: 'Complete' },
+        ambiguity: { passed: true, summary: 'No ambiguity' },
+        specificity: { passed: true, summary: 'Specific' },
+        conflictDetection: { passed: true, summary: 'No conflicts' },
+        scope: { passed: true, summary: 'Well-scoped' },
+    },
+    autoFixabilityMetrics: {
+        acceptanceCriteriaCoverage: { score: 90, summary: 'Acceptance criteria are explicit enough.' },
+        reproductionClarity: { score: 80, summary: 'Expected behavior is clear.' },
+        codeContextCoverage: { score: 85, summary: 'Code context points to the right area.' },
+        changeLocality: { score: 78, summary: 'Change appears localized.' },
+        dependencyConfidence: { score: 88, summary: 'Dependencies are known.' },
+        testability: { score: 92, summary: 'Tests are straightforward.' },
+        blastRadiusConfidence: { score: 83, summary: 'Low risk of regressions.' },
+        humanDecisionIndependence: { score: 86, summary: 'No additional product decisions required.' },
+    },
+    assumptions: ['This is the initial repository bootstrap.'],
+    suggestedFollowUp: ['Proceed directly to planning and implementation.'],
+});
+
 const makeNotReadyResponse = () => JSON.stringify({
     ready: false,
     descriptionForAi: null,
@@ -114,6 +153,18 @@ describe('CopilotIssueInvestigator', () => {
             expect(result.descriptionForAi).toContain('## Summary');
             expect(result.clarificationQuestions).toBeNull();
             expect(result.autoFixabilityReport.decision).toBe('autoFixable');
+        });
+
+        it('normalizes structured descriptionForAi objects into markdown', async () => {
+            vi.mocked(aiClient.complete).mockResolvedValue(makeStructuredReadyResponse());
+
+            const result = await investigator.investigate(makeIssue());
+
+            expect(result.ready).toBe(true);
+            expect(result.descriptionForAi).toContain('## Summary');
+            expect(result.descriptionForAi).toContain('Initialize the monorepo structure with required components.');
+            expect(result.descriptionForAi).toContain('- Create frontend/ and backend/ folders');
+            expect(result.descriptionForAi).toContain('- [ ] The monorepo contains the expected top-level folders');
         });
 
         it('populates all qualityReport fields', async () => {

@@ -188,7 +188,9 @@ export class JiraIssueReader implements IssueReader {
         const customFields: Record<string, string | null> = {};
         for (const fieldKey of Object.values(JIRA_CUSTOM_FIELDS)) {
             const value = fields[fieldKey];
-            customFields[fieldKey] = typeof value === 'string' ? value : null;
+            customFields[fieldKey] = typeof value === 'string'
+                ? value
+                : this.extractTextFromAdf(value) || null;
         }
 
         return {
@@ -227,12 +229,20 @@ export class JiraIssueReader implements IssueReader {
     private extractTextFromAdf(adf: unknown): string {
         if (!adf || typeof adf !== 'object') return '';
         const node = adf as Record<string, unknown>;
-        if (node['type'] === 'text' && typeof node['text'] === 'string') {
+        const nodeType = typeof node['type'] === 'string' ? node['type'] : '';
+
+        if (nodeType === 'text' && typeof node['text'] === 'string') {
             return node['text'];
         }
+
+        if (nodeType === 'hardBreak') {
+            return '\n';
+        }
+
         const content = node['content'] as ReadonlyArray<unknown> | undefined;
         if (Array.isArray(content)) {
-            return content.map((child) => this.extractTextFromAdf(child)).join('');
+            const separator = nodeType === 'doc' ? '\n\n' : '';
+            return content.map((child) => this.extractTextFromAdf(child)).join(separator);
         }
         return '';
     }

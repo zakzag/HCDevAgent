@@ -155,6 +155,39 @@ describe('JiraIssueReader', () => {
             expect(issue.customFields[JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]).toBe('AI description');
         });
 
+        it('should map ADF-backed custom fields to plain text', async () => {
+            const issueWithAdfField = {
+                ...sampleJiraIssue,
+                fields: {
+                    ...sampleJiraIssue.fields,
+                    [JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]: {
+                        type: 'doc',
+                        content: [
+                            {
+                                type: 'paragraph',
+                                content: [
+                                    { type: 'text', text: '## Summary' },
+                                    { type: 'hardBreak' },
+                                    { type: 'text', text: 'Line 1' },
+                                ],
+                            },
+                            {
+                                type: 'paragraph',
+                                content: [{ type: 'text', text: 'Line 2' }],
+                            },
+                        ],
+                    },
+                },
+            };
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve(issueWithAdfField),
+            });
+
+            const issue = await reader.getIssue('TEST-1');
+            expect(issue.customFields[JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]).toBe('## Summary\nLine 1\n\nLine 2');
+        });
+
         it('should handle null assignee', async () => {
             const issueNoAssignee = {
                 ...sampleJiraIssue,
@@ -240,6 +273,31 @@ describe('JiraIssueReader', () => {
 
             const value = await reader.getCustomField('TEST-1', JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI);
             expect(value).toBe('AI description');
+        });
+
+        it('should return plain text when Jira stores the custom field as ADF', async () => {
+            const issueWithAdfField = {
+                ...sampleJiraIssue,
+                fields: {
+                    ...sampleJiraIssue.fields,
+                    [JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]: {
+                        type: 'doc',
+                        content: [
+                            {
+                                type: 'paragraph',
+                                content: [{ type: 'text', text: 'ADF content' }],
+                            },
+                        ],
+                    },
+                },
+            };
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve(issueWithAdfField),
+            });
+
+            const value = await reader.getCustomField('TEST-1', JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI);
+            expect(value).toBe('ADF content');
         });
 
         it('should return null for missing custom field', async () => {

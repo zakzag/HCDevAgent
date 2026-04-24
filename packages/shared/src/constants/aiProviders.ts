@@ -7,6 +7,8 @@ export const AI_PROVIDERS = {
     OPENAI: 'openai',
     /** GitHub Copilot via api.githubcopilot.com — uses GITHUB_TOKEN */
     COPILOT: 'copilot',
+    /** GitHub Copilot via the local `copilot` CLI — uses the CLI's OAuth session */
+    COPILOT_CLI: 'copilot-cli',
 } as const;
 
 /** Union type of all supported AI provider identifiers. */

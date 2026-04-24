@@ -56,6 +56,14 @@ describe('IssueTrackerModule', () => {
             await module.startInvestigation('TEST-1');
             expect(writer.transitionStatus).toHaveBeenCalledWith('TEST-1', WORKFLOW_STATUSES.ISSUE_INVESTIGATION);
         });
+
+        it('should skip the transition when the issue is already in ISSUE INVESTIGATION', async () => {
+            (reader.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue(WORKFLOW_STATUSES.ISSUE_INVESTIGATION);
+
+            await module.startInvestigation('TEST-1');
+
+            expect(writer.transitionStatus).not.toHaveBeenCalled();
+        });
     });
 
     describe('markBlockedForPlanClarification', () => {
@@ -76,6 +84,19 @@ describe('IssueTrackerModule', () => {
             );
             expect(writer.transitionStatus).toHaveBeenCalledWith('TEST-1', WORKFLOW_STATUSES.PLAN);
         });
+
+        it('should still update the custom field when the issue is already in PLAN', async () => {
+            (reader.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue(WORKFLOW_STATUSES.PLAN);
+
+            await module.moveToPlan('TEST-1', 'AI description');
+
+            expect(writer.updateCustomField).toHaveBeenCalledWith(
+                'TEST-1',
+                JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI,
+                'AI description',
+            );
+            expect(writer.transitionStatus).not.toHaveBeenCalled();
+        });
     });
 
     describe('markFailed', () => {
@@ -87,6 +108,20 @@ describe('IssueTrackerModule', () => {
                 'Unrecoverable error',
             );
             expect(writer.transitionStatus).toHaveBeenCalledWith('TEST-1', WORKFLOW_STATUSES.FAILURE);
+            expect(writer.addComment).toHaveBeenCalledWith('TEST-1', 'Agent failure: Unrecoverable error');
+        });
+
+        it('should still write the failure reason and comment when already in FAILURE', async () => {
+            (reader.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue(WORKFLOW_STATUSES.FAILURE);
+
+            await module.markFailed('TEST-1', 'Unrecoverable error');
+
+            expect(writer.updateCustomField).toHaveBeenCalledWith(
+                'TEST-1',
+                JIRA_CUSTOM_FIELDS.FAILURE_REASON,
+                'Unrecoverable error',
+            );
+            expect(writer.transitionStatus).not.toHaveBeenCalled();
             expect(writer.addComment).toHaveBeenCalledWith('TEST-1', 'Agent failure: Unrecoverable error');
         });
     });

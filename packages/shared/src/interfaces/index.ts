@@ -12,6 +12,7 @@ export type { EventBus } from './EventBus.js';
 export type { ConfigProvider } from './ConfigProvider.js';
 export type { Logger } from './Logger.js';
 export type { AiClient } from './AiClient.js';
+export type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from './ProcessRunner.js';
 export type { InvestigationContextProvider } from './InvestigationContextProvider.js';
 export type {
     PromptRegistry,

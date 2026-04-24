@@ -69,7 +69,14 @@ describe('JiraIssueWriter', () => {
             });
 
             await expect(writer.transitionStatus('TEST-1', 'Nonexistent Status'))
-                .rejects.toThrow(IntegrationError);
+                .rejects.toMatchObject({
+                    name: 'IntegrationError',
+                    context: {
+                        issueKey: 'TEST-1',
+                        statusName: 'Nonexistent Status',
+                        availableTransitions: [{ id: '31', name: 'Other', toStatusName: 'Other Status' }],
+                    },
+                });
         });
 
         it('should throw IntegrationError on API failure', async () => {
@@ -117,22 +124,153 @@ describe('JiraIssueWriter', () => {
     });
 
     describe('updateCustomField', () => {
-        it('should send PUT request with field value', async () => {
-            fetchMock.mockResolvedValue({ ok: true });
+        it('should send ADF in the PUT request for textarea custom fields', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({
+                    fields: {
+                        [JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]: {
+                            name: 'Description For AI',
+                            schema: {
+                                type: 'textarea',
+                                custom: 'com.atlassian.jira.plugin.system.customfieldtypes:textarea',
+                            },
+                        },
+                    },
+                }),
+            });
+            fetchMock.mockResolvedValueOnce({ ok: true });
 
-            await writer.updateCustomField('TEST-1', JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI, 'AI desc');
+            await writer.updateCustomField('TEST-1', JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI, 'Line 1\nLine 2\n\nLine 3');
 
-            expect(fetchMock).toHaveBeenCalledTimes(1);
-            const [url, options] = fetchMock.mock.calls[0];
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            const [editMetaUrl, editMetaOptions] = fetchMock.mock.calls[0];
+            expect(editMetaUrl).toContain('/rest/api/3/issue/TEST-1/editmeta');
+            expect(editMetaOptions?.method).toBeUndefined();
+
+            const [url, options] = fetchMock.mock.calls[1];
             expect(url).toContain('/rest/api/3/issue/TEST-1');
             expect(options.method).toBe('PUT');
             const body = JSON.parse(options.body as string);
-            expect(body.fields[JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]).toBe('AI desc');
+            expect(body.fields[JIRA_CUSTOM_FIELDS.DESCRIPTION_FOR_AI]).toEqual({
+                type: 'doc',
+                version: 1,
+                content: [
+                    {
+                        type: 'paragraph',
+                        content: [
+                            { type: 'text', text: 'Line 1' },
+                            { type: 'hardBreak' },
+                            { type: 'text', text: 'Line 2' },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Line 3' }],
+                    },
+                ],
+            });
         });
 
-        it('should throw IntegrationError on failure', async () => {
-            fetchMock.mockResolvedValue({ ok: false, status: 400 });
-            await expect(writer.updateCustomField('TEST-1', 'field', 'value')).rejects.toThrow(IntegrationError);
+        it('should keep single-line custom fields as plain strings', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({
+                    fields: {
+                        [JIRA_CUSTOM_FIELDS.BRANCH_NAME]: {
+                            name: 'Branch Name',
+                            schema: {
+                                type: 'string',
+                                custom: 'com.atlassian.jira.plugin.system.customfieldtypes:textfield',
+                            },
+                        },
+                    },
+                }),
+            });
+            fetchMock.mockResolvedValueOnce({ ok: true });
+
+            await writer.updateCustomField('TEST-1', JIRA_CUSTOM_FIELDS.BRANCH_NAME, 'agent/TEST-1');
+
+            const [, options] = fetchMock.mock.calls[1];
+            const body = JSON.parse(options.body as string);
+            expect(body.fields[JIRA_CUSTOM_FIELDS.BRANCH_NAME]).toBe('agent/TEST-1');
+        });
+
+        it('should throw IntegrationError when the field is not editable for the issue', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({
+                    fields: {
+                        customfield_99999: { name: 'Other Field' },
+                    },
+                }),
+            });
+
+            await expect(writer.updateCustomField('TEST-1', 'field', 'value')).rejects.toMatchObject({
+                name: 'IntegrationError',
+                message: 'Jira custom field is not editable for this issue',
+                context: {
+                    issueKey: 'TEST-1',
+                    fieldName: 'field',
+                    availableFieldKeys: ['customfield_99999'],
+                },
+            });
+        });
+
+        it('should include Jira validation details when the field update is rejected', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve({
+                    fields: {
+                        field: {
+                            name: 'Description For AI',
+                            schema: {
+                                type: 'textarea',
+                                custom: 'com.atlassian.jira.plugin.system.customfieldtypes:textarea',
+                            },
+                        },
+                    },
+                }),
+            });
+            fetchMock.mockResolvedValueOnce({
+                ok: false,
+                status: 400,
+                text: () => Promise.resolve(JSON.stringify({
+                    errorMessages: ['Field cannot be set. It is not on the appropriate screen, or unknown.'],
+                    errors: {
+                        field: 'Field cannot be set. It is not on the appropriate screen, or unknown.',
+                    },
+                })),
+            });
+
+            await expect(writer.updateCustomField('TEST-1', 'field', 'value')).rejects.toMatchObject({
+                name: 'IntegrationError',
+                message: 'Jira API PUT returned 400',
+                context: {
+                    path: '/rest/api/3/issue/TEST-1',
+                    status: 400,
+                    requestBody: {
+                        fields: {
+                            field: {
+                                type: 'doc',
+                                version: 1,
+                                content: [
+                                    {
+                                        type: 'paragraph',
+                                        content: [{ type: 'text', text: 'value' }],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    jiraError: {
+                        errorMessages: ['Field cannot be set. It is not on the appropriate screen, or unknown.'],
+                        errors: {
+                            field: 'Field cannot be set. It is not on the appropriate screen, or unknown.',
+                        },
+                    },
+                },
+            });
         });
 
         it('should throw IntegrationError on network error', async () => {

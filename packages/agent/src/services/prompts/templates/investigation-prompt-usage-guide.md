@@ -166,6 +166,12 @@ interface InvestigationAiResponse {
     };
 }
 
+// Runtime note:
+// The canonical contract is still a markdown string in descriptionForAi.
+// The parser also tolerates a fallback object shape with sections
+// (summary, goal, requirements, acceptanceCriteria, constraints, context)
+// and normalizes it back into the markdown string above.
+
 // Example ready response:
 {
     "ready": true,
@@ -175,6 +181,24 @@ interface InvestigationAiResponse {
         "clarity": { "passed": true, "summary": "Requirements are clear" },
         "completeness": { "passed": true, "summary": "All necessary info provided" },
         // ... other dimensions
+    }
+}
+
+// Tolerated fallback ready response (normalized at runtime):
+{
+    "ready": true,
+    "descriptionForAi": {
+        "summary": "Implement JWT-based authentication...",
+        "goal": "Allow users to authenticate securely...",
+        "requirements": ["Add login endpoint", "Validate tokens"],
+        "acceptanceCriteria": ["Login succeeds with valid credentials"],
+        "constraints": "Use the existing auth middleware.",
+        "context": "The API package already contains user models."
+    },
+    "clarificationQuestions": null,
+    "qualityReport": {
+        "clarity": { "passed": true, "summary": "Requirements are clear" },
+        "completeness": { "passed": true, "summary": "All necessary info provided" }
     }
 }
 

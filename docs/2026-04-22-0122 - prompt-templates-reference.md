@@ -76,6 +76,10 @@ The prompts are used in three main phases of the issue processing workflow:
 }
 ```
 
+**Compatibility Note:**
+- The canonical value for `descriptionForAi` is a single markdown string with the sections `Summary`, `Goal`, `Requirements`, `Acceptance Criteria`, `Constraints`, and `Context`.
+- The runtime parser also tolerates a fallback object shape containing those sections as separate properties and normalizes it back into the canonical markdown string before planning and Jira writes.
+
 **Workflow Impact:**
 - If `ready=true`: Issue transitions to `PLAN` status, `descriptionForAi` written to Jira custom field
 - If `ready=false`: Issue transitions to `BLOCKED FOR PLAN CLARIFICATION`, clarification questions posted as comments

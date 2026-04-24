@@ -70,6 +70,8 @@ Relevant background information, related issues, or prior decisions.
   representation.
 - If the Investigation Module requests clarification and the human replies, the field is
   regenerated incorporating the clarification.
+- In Jira Cloud, this multi-line field may require **Atlassian Document Format (ADF)** at the REST API layer.
+  The agent therefore writes ADF for the field, while preserving the markdown text content shown above.
 
 ---
 
@@ -125,6 +127,7 @@ Any risks, assumptions, or questions that remain.
 - When the human rejects the plan and moves the issue back to `PLAN`, the agent regenerates this
   field taking the rejection comment into account.
 - This field is for **human consumption only** — the agent reads `Implementation Plan For AI` instead.
+- Because this is a multi-line Jira field, the agent may need to send it as **ADF** when writing via the REST API.
 
 ---
 
@@ -199,6 +202,7 @@ Single-paragraph machine-readable summary derived from `Description For AI`.
 - When a plan is rejected and regenerated, **both fields** are updated.
 - The strict structure allows the Implementation Module to iterate step-by-step and verify each
   step independently.
+- Because this is a multi-line Jira field, the agent may need to send it as **ADF** when writing via the REST API.
 
 ---
 
@@ -275,6 +279,10 @@ is also posted as a comment, having it in a dedicated field makes it:
 - Searchable / filterable in Jira.
 - Visible at a glance on the issue detail screen.
 - Available for dashboard reporting.
+
+### Notes
+
+- Because this is a multi-line Jira field, the agent may need to send it as **ADF** when writing via the REST API.
 
 ### Format
 

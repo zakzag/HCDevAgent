@@ -48,6 +48,9 @@ Any technical constraints, dependencies, or limitations.
 ## Context
 Relevant background information.
 
+Serialize that full structure as ONE markdown string in the JSON field \`descriptionForAi\`.
+Do NOT return \`descriptionForAi\` as a nested object with keys like \`summary\`, \`goal\`, or \`requirements\`.
+
 If any dimension fails, set ready=false, descriptionForAi=null, and provide clarificationQuestions.
 
 Use the project description, code chunks, comments, related issues, and investigator settings to ground your reasoning.

@@ -6,6 +6,27 @@ import type {
 } from '@hcdevagent/shared';
 import { IntegrationError } from '@hcdevagent/shared';
 
+/** Structured section-based representation sometimes returned by the AI for descriptionForAi. */
+export interface DescriptionForAiSections {
+    readonly summary: string;
+    readonly goal: string;
+    readonly requirements: ReadonlyArray<string>;
+    readonly acceptanceCriteria: ReadonlyArray<string>;
+    readonly constraints: string;
+    readonly context: string;
+}
+
+/** Raw shape expected from the AI JSON response for investigation before normalization. */
+interface RawInvestigationAiResponse {
+    readonly ready: boolean;
+    readonly descriptionForAi: string | DescriptionForAiSections | null;
+    readonly clarificationQuestions: ReadonlyArray<string> | null;
+    readonly qualityReport: QualityReport;
+    readonly autoFixabilityMetrics: AutoFixabilityMetrics;
+    readonly assumptions: ReadonlyArray<string>;
+    readonly suggestedFollowUp: ReadonlyArray<string>;
+}
+
 /** Raw shape expected from the AI JSON response for investigation. */
 export interface InvestigationAiResponse {
     readonly ready: boolean;
@@ -43,6 +64,49 @@ const isScoredCheckResult = (value: unknown): value is ScoredCheckResult =>
     && !Number.isNaN(value['score'])
     && typeof value['summary'] === 'string';
 
+const isDescriptionForAiSections = (value: unknown): value is DescriptionForAiSections =>
+    isRecord(value)
+    && typeof value['summary'] === 'string'
+    && typeof value['goal'] === 'string'
+    && isStringArray(value['requirements'])
+    && isStringArray(value['acceptanceCriteria'])
+    && typeof value['constraints'] === 'string'
+    && typeof value['context'] === 'string';
+
+/** Renders the canonical markdown form consumed by downstream planning and Jira storage. */
+export const renderDescriptionForAi = (value: string | DescriptionForAiSections | null): string | null => {
+    if (value === null || typeof value === 'string') {
+        return value;
+    }
+
+    const requirements = value.requirements.length > 0
+        ? value.requirements.map((requirement) => `- ${requirement}`).join('\n')
+        : '- None specified';
+    const acceptanceCriteria = value.acceptanceCriteria.length > 0
+        ? value.acceptanceCriteria.map((criterion) => `- [ ] ${criterion}`).join('\n')
+        : '- [ ] None specified';
+
+    return [
+        '## Summary',
+        value.summary,
+        '',
+        '## Goal',
+        value.goal,
+        '',
+        '## Requirements',
+        requirements,
+        '',
+        '## Acceptance Criteria',
+        acceptanceCriteria,
+        '',
+        '## Constraints',
+        value.constraints,
+        '',
+        '## Context',
+        value.context,
+    ].join('\n');
+};
+
 /** Strips markdown code fences from a string if present. */
 export const stripCodeFences = (raw: string): string => {
     const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -50,7 +114,7 @@ export const stripCodeFences = (raw: string): string => {
 };
 
 /** Validates that the AI response conforms to the expected investigation schema. */
-export const isValidInvestigationResponse = (value: unknown): value is InvestigationAiResponse => {
+export const isValidInvestigationResponse = (value: unknown): value is RawInvestigationAiResponse => {
     if (!isRecord(value)) {
         return false;
     }
@@ -59,7 +123,9 @@ export const isValidInvestigationResponse = (value: unknown): value is Investiga
         return false;
     }
 
-    if (!(typeof value['descriptionForAi'] === 'string' || value['descriptionForAi'] === null)) {
+    if (!(typeof value['descriptionForAi'] === 'string'
+        || value['descriptionForAi'] === null
+        || isDescriptionForAiSections(value['descriptionForAi']))) {
         return false;
     }
 
@@ -101,6 +167,9 @@ export const parseInvestigationResponse = (raw: string, issueKey: string): Inves
         });
     }
 
-    return parsed;
+    return {
+        ...parsed,
+        descriptionForAi: renderDescriptionForAi(parsed.descriptionForAi),
+    };
 };
 

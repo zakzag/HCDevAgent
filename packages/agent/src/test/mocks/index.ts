@@ -3,6 +3,8 @@ export { testIssue } from '../fixtures/testIssue.fixture.js';
 export { testPlan } from '../fixtures/testPlan.fixture.js';
 export { createMockConfigProvider } from './createMockConfigProvider.js';
 export { createFetchResponse } from './createFetchResponse.js';
+export { createMockProcessRunner } from './createMockProcessRunner.js';
+export type { MockProcessRunner } from './createMockProcessRunner.js';
 export { MockGitProvider } from './MockGitProvider.js';
 export { MockGitRepository } from './MockGitRepository.js';
 export {
