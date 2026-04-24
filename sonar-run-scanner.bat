@@ -1,0 +1,1 @@
+sonar-scanner.bat -D"sonar.projectKey=HCDevAgent" -D"sonar.sources=./packages" -D"sonar.host.url=http://localhost:9000" -D"sonar.login=squ_6d2f9f6faa92388d0a972ea7a08f6c374358b41c" -Dsonar.typescript.lcov.reportPaths=.coverage/lcov.info
