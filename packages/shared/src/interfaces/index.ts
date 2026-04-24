@@ -11,7 +11,7 @@ export type { StorageAdapter } from './StorageAdapter.js';
 export type { EventBus } from './EventBus.js';
 export type { ConfigProvider } from './ConfigProvider.js';
 export type { Logger } from './Logger.js';
-export type { AiClient } from './AiClient.js';
+export type { AiClient, AiCompletionOptions, AiModelRole } from './AiClient.js';
 export type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from './ProcessRunner.js';
 export type { InvestigationContextProvider } from './InvestigationContextProvider.js';
 export type {
@@ -24,6 +24,8 @@ export type {
     PlanningUserVars,
     PlanningRefineSystemVars,
     PlanningRefineUserVars,
+    PlanningApprovedSystemVars,
+    PlanningApprovedUserVars,
     ImplementationSystemVars,
     ImplementationUserVars,
     ImplementationPrFeedbackUserVars,

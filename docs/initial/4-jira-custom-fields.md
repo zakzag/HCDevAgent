@@ -81,7 +81,7 @@ Relevant background information, related issues, or prior decisions.
 |---|---|
 | **Jira field key** | `customfield_10197` |
 | **Type** | Multi-line text |
-| **Written during** | Phase 2 — Planning (events #9) |
+| **Written during** | Phase 2 — Planning (before `PLAN REVIEW`) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
 | **Read by** | Human reviewer — this is what the human approves or rejects |
 | **Visible to** | Humans (primary review artifact) |
@@ -137,7 +137,7 @@ Any risks, assumptions, or questions that remain.
 |---|---|
 | **Jira field key** | `customfield_10198` |
 | **Type** | Multi-line text |
-| **Written during** | Phase 2 — Planning (events #10, alongside `Implementation Plan`) |
+| **Written during** | Phase 2 — Planning (after `PLAN REVIEW` approval, while entering `READY FOR IMPLEMENTATION`) |
 | **Written by** | Agent (via `IssueWriter.updateCustomField`) |
 | **Read by** | Agent — the Implementation phase consumes this as its primary input |
 | **Visible to** | Humans (read-only reference) |
@@ -197,9 +197,9 @@ Single-paragraph machine-readable summary derived from `Description For AI`.
 ```
 
 ### Notes
-- `Implementation Plan` and `Implementation Plan For AI` are written at the same time during the Planning phase. They represent
-  the same plan in two formats: one for humans, one for the AI.
-- When a plan is rejected and regenerated, **both fields** are updated.
+- `Implementation Plan` and `Implementation Plan For AI` represent the same approved plan in two formats, but they are written at different times.
+- `Implementation Plan` is written first for review; `Implementation Plan For AI` is generated only after the human approves that reviewer-facing plan.
+- When a plan is rejected and regenerated, the agent updates only `Implementation Plan` until the plan is approved again.
 - The strict structure allows the Implementation Module to iterate step-by-step and verify each
   step independently.
 - Because this is a multi-line Jira field, the agent may need to send it as **ADF** when writing via the REST API.

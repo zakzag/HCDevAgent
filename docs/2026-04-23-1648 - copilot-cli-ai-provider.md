@@ -25,13 +25,18 @@ implementation flows require no changes.
 Add a third `AI_PROVIDER` option, `copilot-cli`, implemented by
 `CopilotCliClient`. It spawns the local `copilot` CLI headlessly per call:
 
-- prompt is fed via `-p` (system + user merged with explicit `<<SYSTEM>>` and
-  `<<USER>>` markers plus a header telling the model not to call tools or ask
-  questions)
+- prompt is streamed over stdin (system + user merged with explicit
+  `<<SYSTEM>>` and `<<USER>>` markers plus a header telling the model not to
+  call tools or ask questions)
 - `--model` is added only when configured
-- `--no-color` plus `NO_COLOR=1 / TERM=dumb / CI=1` force plain output
+- `--silent`, `--no-color`, plus `NO_COLOR=1 / TERM=dumb / CI=1` force plain
+  scripting-friendly output
 - tools are denied by default; `COPILOT_CLI_ALLOW_TOOLS=true` opts in
 - stdin is closed immediately so the CLI cannot block waiting for interaction
+- on Windows, bare commands such as `copilot` are resolved to concrete
+  executables like `copilot.cmd` before spawning; `.cmd` / `.bat` shims are
+  then launched through the Windows shell because they are not native
+  executables
 
 Output is cleaned by the pure `parseCopilotCliOutput` function: it strips ANSI,
 BOM, spinner/status lines, tool-invocation blocks, and optional assistant
@@ -61,11 +66,17 @@ Negative:
   (`copilot auth login`) — not suitable for stateless CI runners
 - CLI output shape can change across versions, so the parser is deliberately
   lenient and instrumented with diagnostics
+- stdin transport is now part of the provider contract, so future CLI changes
+  to piped non-interactive input would need a compatibility review
 
 Neutral:
 
 - the API and CLI clients now coexist; the default remains `openai` /
   `copilot` (API). `copilot-cli` is fully opt-in
+- JetBrains / long-lived IDE processes on Windows can keep an outdated `PATH`
+  after a new CLI install. The runner now also probes `%APPDATA%\npm`, but an
+  IDE restart or explicit `COPILOT_CLI_BIN` override may still be required for
+  non-standard installations
 
 ## Alternatives considered
 

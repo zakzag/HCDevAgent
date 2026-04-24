@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type {
     IssueTrackerOperations,
     IssueInvestigator,
+    PlanGenerator,
     StorageAdapter,
     EventBus,
     Logger,
@@ -53,10 +54,13 @@ const createMockStorage = (): StorageAdapter => ({
 /** Creates a mock IssueTrackerOperations. */
 const createMockIssueOps = (): IssueTrackerOperations => ({
     fetchNextIssue: vi.fn().mockResolvedValue(null),
+    fetchNextPlanIssue: vi.fn().mockResolvedValue(null),
+    fetchNextReadyForImplementationIssue: vi.fn().mockResolvedValue(null),
     startInvestigation: vi.fn().mockResolvedValue(undefined),
     markBlockedForPlanClarification: vi.fn().mockResolvedValue(undefined),
     moveToPlan: vi.fn().mockResolvedValue(undefined),
     moveToPlanReview: vi.fn().mockResolvedValue(undefined),
+    storePlanForAi: vi.fn().mockResolvedValue(undefined),
     startImplementation: vi.fn().mockResolvedValue(undefined),
     markBlockedForCodeClarification: vi.fn().mockResolvedValue(undefined),
     resumeImplementation: vi.fn().mockResolvedValue(undefined),
@@ -116,10 +120,18 @@ const createMockInvestigator = (): IssueInvestigator => ({
     } satisfies InvestigationResult),
 });
 
+/** Creates a mock PlanGenerator. */
+const createMockPlanGenerator = (): PlanGenerator => ({
+    generatePlan: vi.fn().mockResolvedValue('## Summary\nHuman plan'),
+    refinePlan: vi.fn().mockResolvedValue('## Summary\nRefined plan'),
+    generatePlanForAi: vi.fn().mockResolvedValue('## META\n- issueKey: TEST-1'),
+});
+
 describe('Conductor', () => {
     let conductor: Conductor;
     let issueOps: IssueTrackerOperations;
     let investigator: IssueInvestigator;
+    let planGenerator: PlanGenerator;
     let storage: StorageAdapter;
     let eventBus: EventBus;
     let logger: Logger;
@@ -128,6 +140,7 @@ describe('Conductor', () => {
     beforeEach(() => {
         issueOps = createMockIssueOps();
         investigator = createMockInvestigator();
+        planGenerator = createMockPlanGenerator();
         storage = createMockStorage();
         eventBus = createMockEventBus();
         logger = createMockLogger();
@@ -136,6 +149,7 @@ describe('Conductor', () => {
         conductor = new Conductor(
             issueOps,
             investigator,
+            planGenerator,
             storage,
             eventBus,
             logger,
@@ -180,12 +194,16 @@ describe('Conductor', () => {
     describe('tick — no issue found', () => {
         it('should emit CONDUCTOR_IDLE when no issues are in queue', async () => {
             (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextReadyForImplementationIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
             await conductor.tick();
             expect(eventBus.emit).toHaveBeenCalledWith(EVENT_NAMES.CONDUCTOR_IDLE, {});
         });
 
         it('should not call startInvestigation when no issues found', async () => {
             (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextReadyForImplementationIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
             await conductor.tick();
             expect(issueOps.startInvestigation).not.toHaveBeenCalled();
         });
@@ -280,6 +298,98 @@ describe('Conductor', () => {
         it('should NOT move to plan', async () => {
             await conductor.tick();
             expect(issueOps.moveToPlan).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('tick — issue found, planning generation', () => {
+        beforeEach(() => {
+            (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(testIssue);
+            (issueOps.getDescriptionForAi as ReturnType<typeof vi.fn>).mockResolvedValue('## Summary\nAdd auth.');
+            (issueOps.getPlan as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.getLatestHumanReply as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+        });
+
+        it('should generate a reviewer-facing plan and move to plan review', async () => {
+            await conductor.tick();
+
+            expect(planGenerator.generatePlan).toHaveBeenCalledWith('## Summary\nAdd auth.');
+            expect(issueOps.moveToPlanReview).toHaveBeenCalledWith(testIssue.key, '## Summary\nHuman plan');
+            expect(issueOps.storePlanForAi).not.toHaveBeenCalled();
+        });
+
+        it('should emit PLAN_STARTED with generate mode', async () => {
+            await conductor.tick();
+
+            expect(eventBus.emit).toHaveBeenCalledWith(EVENT_NAMES.PLAN_STARTED, {
+                issueKey: testIssue.key,
+                mode: 'generate',
+            });
+        });
+    });
+
+    describe('tick — issue found, planning refinement', () => {
+        beforeEach(() => {
+            (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(testIssue);
+            (issueOps.getDescriptionForAi as ReturnType<typeof vi.fn>).mockResolvedValue('## Summary\nAdd auth.');
+            (issueOps.getPlan as ReturnType<typeof vi.fn>).mockResolvedValue('## Summary\nOld plan');
+            (issueOps.getLatestHumanReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+                id: 'comment-2',
+                author: 'Reviewer',
+                body: 'Please add error handling',
+                createdAt: '2026-01-02T00:00:00.000Z',
+            });
+        });
+
+        it('should refine the reviewer-facing plan when a rejection comment exists', async () => {
+            await conductor.tick();
+
+            expect(planGenerator.refinePlan).toHaveBeenCalledWith(
+                '## Summary\nOld plan',
+                'Please add error handling',
+                '## Summary\nAdd auth.',
+            );
+            expect(eventBus.emit).toHaveBeenCalledWith(EVENT_NAMES.PLAN_REJECTED, { issueKey: testIssue.key });
+        });
+    });
+
+    describe('tick — issue found, post-approval planForAi generation', () => {
+        beforeEach(() => {
+            (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextReadyForImplementationIssue as ReturnType<typeof vi.fn>).mockResolvedValue({
+                ...testIssue,
+                status: WORKFLOW_STATUSES.READY_FOR_IMPLEMENTATION,
+            });
+            (issueOps.getDescriptionForAi as ReturnType<typeof vi.fn>).mockResolvedValue('## Summary\nAdd auth.');
+            (issueOps.getPlan as ReturnType<typeof vi.fn>).mockResolvedValue('## Summary\nApproved plan');
+        });
+
+        it('should generate planForAi and store it after approval', async () => {
+            await conductor.tick();
+
+            expect(planGenerator.generatePlanForAi).toHaveBeenCalledWith(
+                '## Summary\nAdd auth.',
+                '## Summary\nApproved plan',
+            );
+            expect(issueOps.storePlanForAi).toHaveBeenCalledWith(testIssue.key, '## META\n- issueKey: TEST-1');
+            expect(eventBus.emit).toHaveBeenCalledWith(EVENT_NAMES.PLAN_COMPLETED, { issueKey: testIssue.key });
+        });
+    });
+
+    describe('tick — planning validation failures', () => {
+        beforeEach(() => {
+            (issueOps.fetchNextIssue as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+            (issueOps.fetchNextPlanIssue as ReturnType<typeof vi.fn>).mockResolvedValue(testIssue);
+            (issueOps.getDescriptionForAi as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+        });
+
+        it('should mark the issue failed when Description For AI is missing', async () => {
+            await conductor.tick();
+
+            expect(issueOps.markFailed).toHaveBeenCalledWith(testIssue.key, 'Description For AI is missing for planning');
+            expect(eventBus.emit).toHaveBeenCalledWith(EVENT_NAMES.ISSUE_FAILED, { issueKey: testIssue.key });
         });
     });
 

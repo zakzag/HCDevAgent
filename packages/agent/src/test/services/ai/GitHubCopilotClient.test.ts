@@ -106,6 +106,31 @@ describe('GitHubCopilotClient', () => {
             expect(callBody.model).toBe('gpt-4o');
         });
 
+        it('uses an explicit per-request model override when provided', async () => {
+            fetchMock.mockResolvedValue(makeFetchResponse(true, {
+                choices: [{ message: { content: '' } }],
+            }));
+
+            await client.complete('sys', 'usr', { model: 'gpt-4.1-mini' });
+
+            const [, callOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+            const callBody = JSON.parse(callOptions['body'] as string) as { model: string };
+            expect(callBody.model).toBe('gpt-4.1-mini');
+        });
+
+        it('uses a role-specific env model when configured', async () => {
+            client = new GitHubCopilotClient(createMockConfig({ AI_MODEL_PLANNING: 'gpt-5-mini' }), createMockLogger());
+            fetchMock.mockResolvedValue(makeFetchResponse(true, {
+                choices: [{ message: { content: '' } }],
+            }));
+
+            await client.complete('sys', 'usr', { role: 'planning' });
+
+            const [, callOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+            const callBody = JSON.parse(callOptions['body'] as string) as { model: string };
+            expect(callBody.model).toBe('gpt-5-mini');
+        });
+
         it('returns empty string when choices array is empty', async () => {
             fetchMock.mockResolvedValue(makeFetchResponse(true, { choices: [] }));
 

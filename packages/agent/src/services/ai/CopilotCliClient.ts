@@ -1,32 +1,24 @@
 import { injectable, inject } from 'inversify';
 import type {
     AiClient,
+    AiCompletionOptions,
     ConfigProvider,
     Logger,
     ProcessRunner,
     ProcessRunResult,
 } from '@hcdevagent/shared';
 import { SYMBOLS, IntegrationError } from '@hcdevagent/shared';
+import {
+    AUTH_ERROR_MARKERS,
+    COMMAND_LINE_TOO_LONG_MARKERS,
+    RATE_LIMIT_MARKERS,
+} from './CopilotCliMarkers.js';
+import { AiModelSelector } from './AiModelSelector.js';
 import { parseCopilotCliOutput } from './CopilotCliOutputParser.js';
 
 const DEFAULT_BIN = 'copilot';
 const DEFAULT_TIMEOUT_MS = 180_000;
 const STDERR_TAIL_BYTES = 2_048;
-
-const AUTH_ERROR_MARKERS = [
-    'not logged in',
-    'not authenticated',
-    'authentication required',
-    'please run `copilot auth login`',
-    'please run copilot auth login',
-    'unauthorized',
-];
-
-const RATE_LIMIT_MARKERS = [
-    'rate limit',
-    'too many requests',
-    'quota exceeded',
-];
 
 /**
  * Header injected into the combined prompt so the CLI treats its input as a
@@ -41,8 +33,14 @@ interface BuildArgsInput {
     readonly model: string | undefined;
     readonly allowTools: boolean;
     readonly extraArgs: ReadonlyArray<string>;
-    readonly prompt: string;
 }
+
+const normalizeOptionalString = (value: string | undefined): string | undefined => {
+    if (value === undefined) return undefined;
+
+    const normalized = value.trim();
+    return normalized === '' ? undefined : normalized;
+};
 
 const truthy = (value: string | undefined): boolean => {
     if (value === undefined) return false;
@@ -53,6 +51,8 @@ const truthy = (value: string | undefined): boolean => {
 const tailString = (value: string, limit: number): string =>
     value.length <= limit ? value : value.slice(value.length - limit);
 
+const getUtf8ByteLength = (value: string): number => Buffer.byteLength(value, 'utf8');
+
 /**
  * AI client backed by the standalone `copilot` CLI.
  *
@@ -60,7 +60,7 @@ const tailString = (value: string, limit: number): string =>
  * host (OS credential store / config dir) — the CLI's own token, not a PAT.
  *
  * The CLI is invoked headlessly per call:
- *   - prompt is passed as `-p` with the combined system + user content
+     *   - prompt is streamed over stdin with the combined system + user content
  *   - `--model <id>` if configured
  *   - `--no-color`, `NO_COLOR=1`, `TERM=dumb`, `CI=1` to suppress decoration
  *   - stdin is closed immediately so the CLI cannot block waiting for input
@@ -83,45 +83,56 @@ export class CopilotCliClient implements AiClient {
     private readonly allowTools: boolean;
     private readonly logRaw: boolean;
     private readonly extraArgs: ReadonlyArray<string>;
+    private readonly modelSelector: AiModelSelector;
 
     public constructor(
         @inject(SYMBOLS.ConfigProvider) configProvider: ConfigProvider,
         @inject(SYMBOLS.Logger) private readonly logger: Logger,
         @inject(SYMBOLS.ProcessRunner) private readonly processRunner: ProcessRunner,
     ) {
-        this.bin = configProvider.getOptional('COPILOT_CLI_BIN') ?? DEFAULT_BIN;
+        this.bin = normalizeOptionalString(configProvider.getOptional('COPILOT_CLI_BIN')) ?? DEFAULT_BIN;
         this.model =
-            configProvider.getOptional('COPILOT_CLI_MODEL')
-            ?? configProvider.getOptional('COPILOT_MODEL');
+            normalizeOptionalString(configProvider.getOptional('COPILOT_CLI_MODEL'))
+            ?? normalizeOptionalString(configProvider.getOptional('COPILOT_MODEL'));
         this.timeoutMs =
             configProvider.getOptionalNumber('COPILOT_CLI_TIMEOUT_MS') ?? DEFAULT_TIMEOUT_MS;
         this.workingDir =
-            configProvider.getOptional('COPILOT_CLI_WORKING_DIR')
-            ?? configProvider.getOptional('WORKSPACE_PATH');
+            normalizeOptionalString(configProvider.getOptional('COPILOT_CLI_WORKING_DIR'))
+            ?? normalizeOptionalString(configProvider.getOptional('WORKSPACE_PATH'));
         this.allowTools = truthy(configProvider.getOptional('COPILOT_CLI_ALLOW_TOOLS'));
         this.logRaw = truthy(configProvider.getOptional('COPILOT_CLI_LOG_RAW'));
         this.extraArgs = this.parseExtraArgs(configProvider.getOptional('COPILOT_CLI_EXTRA_ARGS'));
+        this.modelSelector = new AiModelSelector(configProvider);
     }
 
-    public async complete(systemPrompt: string, userPrompt: string): Promise<string> {
+    public async complete(
+        systemPrompt: string,
+        userPrompt: string,
+        options?: AiCompletionOptions,
+    ): Promise<string> {
         const prompt = this.buildPrompt(systemPrompt, userPrompt);
+        const promptByteLength = getUtf8ByteLength(prompt);
+        const model = this.modelSelector.resolveModel(this.model, options);
         const args = this.buildArgs({
-            model: this.model,
+            model,
             allowTools: this.allowTools,
             extraArgs: this.extraArgs,
-            prompt,
         });
 
         this.logger.debug('Invoking Copilot CLI', {
             bin: this.bin,
-            model: this.model,
+            model,
+            role: options?.role,
             cwd: this.workingDir,
             timeoutMs: this.timeoutMs,
-            argsSansPrompt: this.redactPromptFromArgs(args),
+            promptTransport: 'stdin',
+            promptLength: prompt.length,
+            promptByteLength,
+            args,
         });
 
-        const result = await this.runProcess(args);
-        return this.handleResult(result);
+        const result = await this.runProcess(args, prompt);
+        return this.handleResult(result, promptByteLength);
     }
 
     private buildPrompt(systemPrompt: string, userPrompt: string): string {
@@ -144,13 +155,13 @@ export class CopilotCliClient implements AiClient {
             args.push('--model', input.model);
         }
         args.push('--no-color');
+        args.push('--silent');
         if (input.allowTools) {
             args.push('--allow-all-tools');
         }
         if (input.extraArgs.length > 0) {
             args.push(...input.extraArgs);
         }
-        args.push('-p', input.prompt);
         return args;
     }
 
@@ -162,21 +173,7 @@ export class CopilotCliClient implements AiClient {
             .filter((token) => token.length > 0);
     }
 
-    private redactPromptFromArgs(args: ReadonlyArray<string>): ReadonlyArray<string> {
-        const out: Array<string> = [];
-        for (let i = 0; i < args.length; i += 1) {
-            const current = args[i] ?? '';
-            if (current === '-p' || current === '--prompt') {
-                out.push(current, '<redacted>');
-                i += 1;
-                continue;
-            }
-            out.push(current);
-        }
-        return out;
-    }
-
-    private async runProcess(args: ReadonlyArray<string>): Promise<ProcessRunResult> {
+    private async runProcess(args: ReadonlyArray<string>, prompt: string): Promise<ProcessRunResult> {
         try {
             return await this.processRunner.run(this.bin, args, {
                 cwd: this.workingDir,
@@ -186,13 +183,14 @@ export class CopilotCliClient implements AiClient {
                     CI: '1',
                     FORCE_COLOR: '0',
                 },
+                stdin: prompt,
                 timeoutMs: this.timeoutMs,
             });
         } catch (error) {
             const err = error as NodeJS.ErrnoException;
             if (err.code === 'ENOENT') {
                 throw new IntegrationError(
-                    `Copilot CLI binary not found: "${this.bin}". Install the CLI and run \`copilot auth login\`.`,
+                    `Copilot CLI binary not found: "${this.bin}". Install the CLI, restart the IDE if it was open during installation, or set \`COPILOT_CLI_BIN\` to the absolute \`.cmd\`/\`.exe\` path, then run \`copilot auth login\`.`,
                     { bin: this.bin, code: err.code },
                 );
             }
@@ -203,7 +201,7 @@ export class CopilotCliClient implements AiClient {
         }
     }
 
-    private handleResult(result: ProcessRunResult): string {
+    private handleResult(result: ProcessRunResult, promptByteLength: number): string {
         if (this.logRaw) {
             this.logger.debug('Copilot CLI raw output', {
                 stdoutLength: result.stdout.length,
@@ -241,6 +239,15 @@ export class CopilotCliClient implements AiClient {
             });
         }
 
+
+        if (COMMAND_LINE_TOO_LONG_MARKERS.some((marker) => stderrLower.includes(marker))) {
+            throw new IntegrationError('Copilot CLI command line limit exceeded', {
+                bin: this.bin,
+                exitCode: result.exitCode,
+                promptByteLength,
+                stderrTail: tailString(result.stderr, STDERR_TAIL_BYTES),
+            });
+        }
         if (result.exitCode !== 0) {
             throw new IntegrationError(
                 `Copilot CLI exited with code ${result.exitCode ?? 'null'}`,
@@ -249,6 +256,7 @@ export class CopilotCliClient implements AiClient {
                     exitCode: result.exitCode,
                     signal: result.signal,
                     stderrTail: tailString(result.stderr, STDERR_TAIL_BYTES),
+                    promptByteLength,
                 },
             );
         }

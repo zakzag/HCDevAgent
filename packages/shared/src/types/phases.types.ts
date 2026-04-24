@@ -108,8 +108,12 @@ export interface InvestigationResult {
     readonly autoFixabilityReport: AutoFixabilityReport;
 }
 
-/** Result of the planning phase (3-interfaces.md §5). */
+/**
+ * Stored planning artifacts for one issue.
+ * `planForAi` remains null until the human-approved plan is converted into the
+ * machine-readable implementation contract.
+ */
 export interface PlanResult {
     readonly plan: string;
-    readonly planForAi: string;
+    readonly planForAi: string | null;
 }

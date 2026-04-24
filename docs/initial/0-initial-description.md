@@ -100,13 +100,15 @@ the issue to `PLAN`.
 
 ### Phase 2 — Planning
 
-During the `PLAN` status, the agent generates an implementation plan based on the `Description For AI` field. The plan
-follows a standardized format (summary, steps, checklist) and is written to the `Implementation Plan` and
-`Implementation Plan For AI` custom fields.
+During the `PLAN` status, the agent generates a human-reviewable implementation plan based on the
+`Description For AI` field. The plan follows a standardized format (summary, steps, checklist) and
+is written only to the `Implementation Plan` custom field.
 
 Once the plan is ready, the agent transitions the issue to `PLAN REVIEW` and waits for human approval.
 
-- **Happy path:** the human approves and moves the issue to `READY FOR IMPLEMENTATION`.
+- **Happy path:** the human approves and moves the issue to `READY FOR IMPLEMENTATION`. At that point the
+  agent converts the approved reviewer plan into `Implementation Plan For AI` and persists it before
+  implementation begins.
 - **Unhappy path:** the human rejects the plan (optionally with a comment explaining why) and moves the issue back to 
   `PLAN`. The agent re-generates the plan taking the feedback into account.
 
@@ -191,9 +193,10 @@ They provide foundational functionality that other modules depend on.
 
 #### AI Agent Service — Planning
 - Abstracts the AI model interaction for the Planning phase.
-- Implements the `PlanGenerator` interface — generates `Implementation Plan` (human-readable) and `Implementation Plan For AI`
-  (machine-parseable) from the `Description For AI` field.
-- Supports plan refinement after human rejection feedback.
+- Implements the `PlanGenerator` interface — generates `Implementation Plan` (human-readable) from the
+  `Description For AI` field while the issue is in `PLAN`, then generates `Implementation Plan For AI`
+  (machine-parseable) only after the reviewer plan is approved.
+- Supports plan refinement after human rejection feedback and post-approval conversion into the machine plan.
 
 #### AI Agent Service — Code Implementation
 - Abstracts the AI model interaction for the Implementation phase.

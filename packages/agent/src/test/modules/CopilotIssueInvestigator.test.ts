@@ -153,6 +153,7 @@ describe('CopilotIssueInvestigator', () => {
             expect(result.descriptionForAi).toContain('## Summary');
             expect(result.clarificationQuestions).toBeNull();
             expect(result.autoFixabilityReport.decision).toBe('autoFixable');
+            expect(aiClient.complete).toHaveBeenCalledWith(expect.any(String), expect.any(String), { role: 'investigation' });
         });
 
         it('normalizes structured descriptionForAi objects into markdown', async () => {

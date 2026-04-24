@@ -51,6 +51,45 @@ describe('IssueTrackerModule', () => {
         });
     });
 
+    describe('fetchNextPlanIssue', () => {
+        it('should return null when no plan issues are found', async () => {
+            const result = await module.fetchNextPlanIssue();
+            expect(result).toBeNull();
+            expect(reader.fetchIssuesByStatus).toHaveBeenCalledWith(WORKFLOW_STATUSES.PLAN);
+        });
+
+        it('should return the first plan issue when issues are found', async () => {
+            (reader.fetchIssuesByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([testIssue]);
+            const result = await module.fetchNextPlanIssue();
+            expect(result).toEqual(testIssue);
+        });
+    });
+
+    describe('fetchNextReadyForImplementationIssue', () => {
+        it('should return null when all approved issues already have planForAi', async () => {
+            (reader.fetchIssuesByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([{
+                ...testIssue,
+                customFields: {
+                    ...testIssue.customFields,
+                    [JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN_FOR_AI]: '## META\n- issueKey: TEST-1',
+                },
+            }]);
+
+            const result = await module.fetchNextReadyForImplementationIssue();
+
+            expect(result).toBeNull();
+            expect(reader.fetchIssuesByStatus).toHaveBeenCalledWith(WORKFLOW_STATUSES.READY_FOR_IMPLEMENTATION);
+        });
+
+        it('should return the first approved issue missing planForAi', async () => {
+            (reader.fetchIssuesByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([testIssue]);
+
+            const result = await module.fetchNextReadyForImplementationIssue();
+
+            expect(result).toEqual(testIssue);
+        });
+    });
+
     describe('startInvestigation', () => {
         it('should transition to ISSUE INVESTIGATION', async () => {
             await module.startInvestigation('TEST-1');
@@ -170,10 +209,46 @@ describe('IssueTrackerModule', () => {
         });
     });
 
-    describe('not-yet-implemented methods', () => {
-        it('moveToPlanReview should throw NotImplementedError', async () => {
-            await expect(module.moveToPlanReview('TEST-1', 'plan', 'planForAi')).rejects.toThrow('not yet implemented');
+    describe('moveToPlanReview', () => {
+        it('should write only the reviewer-facing plan and transition to PLAN REVIEW', async () => {
+            await module.moveToPlanReview('TEST-1', 'reviewer plan');
+
+            expect(writer.updateCustomField).toHaveBeenCalledWith(
+                'TEST-1',
+                JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN,
+                'reviewer plan',
+            );
+            expect(writer.transitionStatus).toHaveBeenCalledWith('TEST-1', WORKFLOW_STATUSES.PLAN_REVIEW);
         });
+
+        it('should still write the reviewer-facing plan when the issue is already in PLAN REVIEW', async () => {
+            (reader.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue(WORKFLOW_STATUSES.PLAN_REVIEW);
+
+            await module.moveToPlanReview('TEST-1', 'reviewer plan');
+
+            expect(writer.updateCustomField).toHaveBeenCalledWith(
+                'TEST-1',
+                JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN,
+                'reviewer plan',
+            );
+            expect(writer.transitionStatus).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('storePlanForAi', () => {
+        it('should write the machine-readable plan without changing status', async () => {
+            await module.storePlanForAi('TEST-1', '## META\n- issueKey: TEST-1');
+
+            expect(writer.updateCustomField).toHaveBeenCalledWith(
+                'TEST-1',
+                JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN_FOR_AI,
+                '## META\n- issueKey: TEST-1',
+            );
+            expect(writer.transitionStatus).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('not-yet-implemented methods', () => {
 
         it('startImplementation should throw NotImplementedError', async () => {
             await expect(module.startImplementation('TEST-1', 'branch')).rejects.toThrow('not yet implemented');

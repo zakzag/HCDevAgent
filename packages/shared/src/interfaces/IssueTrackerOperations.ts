@@ -9,6 +9,12 @@ export interface IssueTrackerOperations {
     /** Poll for the next issue in SELECTED FOR TRIAGE status. */
     fetchNextIssue(): Promise<Issue | null>;
 
+    /** Poll for the next issue awaiting human-plan generation or refinement in PLAN status. */
+    fetchNextPlanIssue(): Promise<Issue | null>;
+
+    /** Poll for the next approved issue that still needs `Implementation Plan For AI`. */
+    fetchNextReadyForImplementationIssue(): Promise<Issue | null>;
+
     /** Transition issue to ISSUE INVESTIGATION. */
     startInvestigation(issueKey: string): Promise<void>;
 
@@ -18,8 +24,11 @@ export interface IssueTrackerOperations {
     /** Write Description For AI field + transition to PLAN. */
     moveToPlan(issueKey: string, descriptionForAi: string): Promise<void>;
 
-    /** Write Implementation Plan + Implementation Plan For AI fields + transition to PLAN REVIEW. */
-    moveToPlanReview(issueKey: string, plan: string, planForAi: string): Promise<void>;
+    /** Write Implementation Plan field + transition to PLAN REVIEW. */
+    moveToPlanReview(issueKey: string, plan: string): Promise<void>;
+
+    /** Persist Implementation Plan For AI after the human plan is approved. */
+    storePlanForAi(issueKey: string, planForAi: string): Promise<void>;
 
     /** Transition to IN PROGRESS + write Branch Name field. */
     startImplementation(issueKey: string, branchName: string): Promise<void>;

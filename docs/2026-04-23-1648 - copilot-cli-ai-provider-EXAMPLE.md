@@ -31,7 +31,7 @@ and `CopilotCodeImplementer` all use the shared `AiClient` interface.
 ## Smoke test manually
 
 ```powershell
-copilot --no-color --model gpt-5.4 -p "Reply with exactly OK"
+'Reply with exactly OK' | copilot --silent --no-color --model gpt-5.4
 ```
 
 If that prints `OK` the CLI is configured correctly and the agent will work.
@@ -40,9 +40,17 @@ If that prints `OK` the CLI is configured correctly and the agent will work.
 
 - `Copilot CLI binary not found` → install the CLI or set `COPILOT_CLI_BIN` to
   the absolute path of the executable.
+- On Windows, if `copilot` works in a fresh `cmd.exe` window but the agent still
+  reports `binary not found`, restart the IDE first. Long-lived IDE processes
+  can keep an outdated `PATH` after a new npm-global install. The agent now also
+  probes `%APPDATA%\npm`, so the most reliable override is usually something
+  like `COPILOT_CLI_BIN=C:\Users\<you>\AppData\Roaming\npm\copilot.cmd`.
 - `Copilot CLI is not authenticated` → run `copilot auth login` on the host.
 - `Copilot CLI timed out` → increase `COPILOT_CLI_TIMEOUT_MS`, or inspect
   `stderrTail` in the logged error context.
+- `Copilot CLI command line limit exceeded` → the provider now streams prompts
+  over stdin, so this should only happen if some other custom CLI argument is
+  excessively large. Remove oversized extra args and retry.
 - Empty output with `strippedToolBlocks > 0` → the CLI tried to use tools;
   either sharpen the prompt or set `COPILOT_CLI_ALLOW_TOOLS=true` (at your
   own risk — the CLI can then edit the filesystem).

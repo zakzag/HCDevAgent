@@ -7,10 +7,13 @@ import type { Issue, Comment } from '../../types/domain.types.js';
  */
 export class MockIssueTrackerOperations implements IssueTrackerOperations {
     public fetchNextIssue = vi.fn<[], Promise<Issue | null>>();
+    public fetchNextPlanIssue = vi.fn<[], Promise<Issue | null>>();
+    public fetchNextReadyForImplementationIssue = vi.fn<[], Promise<Issue | null>>();
     public startInvestigation = vi.fn<[string], Promise<void>>();
     public markBlockedForPlanClarification = vi.fn<[string, string], Promise<void>>();
     public moveToPlan = vi.fn<[string, string], Promise<void>>();
-    public moveToPlanReview = vi.fn<[string, string, string], Promise<void>>();
+    public moveToPlanReview = vi.fn<[string, string], Promise<void>>();
+    public storePlanForAi = vi.fn<[string, string], Promise<void>>();
     public startImplementation = vi.fn<[string, string], Promise<void>>();
     public markBlockedForCodeClarification = vi.fn<[string, string], Promise<void>>();
     public resumeImplementation = vi.fn<[string], Promise<void>>();

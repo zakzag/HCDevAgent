@@ -66,10 +66,13 @@ or more `IssueReader` / `IssueWriter` calls.
 | Method | Parameters | Returns | Description |
 |---|---|---|---|
 | `fetchNextIssue` | — | `Issue \| null` | Poll for the next issue in `SELECTED FOR TRIAGE` status |
+| `fetchNextPlanIssue` | — | `Issue \| null` | Poll for the next issue in `PLAN` status |
+| `fetchNextReadyForImplementationIssue` | — | `Issue \| null` | Poll for the next issue in `READY FOR IMPLEMENTATION` that still lacks `Implementation Plan For AI` |
 | `startInvestigation` | `issueKey: string` | `void` | → `ISSUE INVESTIGATION` |
 | `markBlockedForPlanClarification` | `issueKey: string, questions: string` | `void` | → `BLOCKED FOR PLAN CLARIFICATION` + comment |
 | `moveToPlan` | `issueKey: string, descriptionForAi: string` | `void` | Write `Description For AI` field + → `PLAN` |
-| `moveToPlanReview` | `issueKey: string, plan: string, planForAi: string` | `void` | Write `Implementation Plan` + `Implementation Plan For AI` fields + → `PLAN REVIEW` |
+| `moveToPlanReview` | `issueKey: string, plan: string` | `void` | Write `Implementation Plan` field + → `PLAN REVIEW` |
+| `storePlanForAi` | `issueKey: string, planForAi: string` | `void` | Write `Implementation Plan For AI` after the reviewer plan is approved |
 | `startImplementation` | `issueKey: string, branchName: string` | `void` | → `IN PROGRESS` + write `Branch Name` field |
 | `markBlockedForCodeClarification` | `issueKey: string, questions: string` | `void` | → `BLOCKED FOR CODE CLARIFICATION` + comment |
 | `resumeImplementation` | `issueKey: string` | `void` | → `IN PROGRESS` (after code clarification resolved) |
@@ -184,25 +187,27 @@ Each metric is a `{ score: number, summary: string }` pair, where `score` is on 
 
 ## 5. AI Agent Service — `PlanGenerator`
 
-Generates implementation plans from the enhanced `Description For AI`. Produces two outputs:
-a human-readable `Implementation Plan` and a machine-parseable `Implementation Plan For AI`.
+Generates implementation plans from the enhanced `Description For AI`. It first produces a
+human-readable `Implementation Plan` for review, then generates `Implementation Plan For AI`
+only after that reviewer plan is accepted.
 
 | Method | Parameters | Returns | Description |
 |---|---|---|---|
-| `generatePlan` | `descriptionForAi: string, feedback?: string` | `PlanResult` | Generate both plan formats from the enhanced description |
-| `refinePlan` | `existingPlanForAi: string, rejectionComment: string` | `PlanResult` | Re-generate both plans incorporating human rejection feedback |
+| `generatePlan` | `descriptionForAi: string, feedback?: string` | `string` | Generate the reviewer-facing `Implementation Plan` |
+| `refinePlan` | `existingPlan: string, rejectionComment: string, descriptionForAi: string` | `string` | Re-generate the reviewer-facing plan incorporating human rejection feedback |
+| `generatePlanForAi` | `descriptionForAi: string, approvedPlan: string` | `string` | Generate `Implementation Plan For AI` from the approved reviewer plan |
 
 ### `PlanResult`
 
 | Field | Type | Description |
 |---|---|---|
 | `plan` | `string` | Human-readable plan (written to `Implementation Plan` custom field) |
-| `planForAi` | `string` | Standardized markdown plan (written to `Implementation Plan For AI` custom field) |
+| `planForAi` | `string \| null` | Standardized markdown plan (written to `Implementation Plan For AI` custom field after approval) |
 
 ### Notes
-- Both fields are always written together — they represent the same plan in two formats.
+- `Implementation Plan` is written while the issue is in `PLAN`; `Implementation Plan For AI` is written only after the human approves the reviewer-facing plan.
 - `feedback` is the human's clarification reply (if any) from the Investigation phase.
-- `rejectionComment` is the human's comment explaining why the plan was rejected.
+- `rejectionComment` is the human's comment explaining why the reviewer plan was rejected.
 - `generateDescriptionForAi` has been moved to the `IssueInvestigator` interface (section 4)
   because producing the enhanced description is an investigation responsibility, not a planning one.
 - See [4-jira-custom-fields.md](4-jira-custom-fields.md) for the exact format of both fields.

@@ -1,6 +1,7 @@
 export { OpenAiClient } from './OpenAiClient.js';
 export { GitHubCopilotClient } from './GitHubCopilotClient.js';
 export { CopilotCliClient } from './CopilotCliClient.js';
+export { AiModelSelector, AI_ROLE_MODEL_ENV_KEYS } from './AiModelSelector.js';
 export { parseCopilotCliOutput } from './CopilotCliOutputParser.js';
 export type {
     CopilotCliParseResult,

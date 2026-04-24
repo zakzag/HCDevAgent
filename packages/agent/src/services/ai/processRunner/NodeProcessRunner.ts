@@ -1,9 +1,17 @@
 import { spawn } from 'node:child_process';
 import { injectable } from 'inversify';
 import type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from '@hcdevagent/shared';
+import { resolveExecutableCommand } from './resolveExecutableCommand.js';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const SIGTERM_GRACE_MS = 2_000;
+
+const normalizeWorkingDirectory = (cwd: string | undefined): string | undefined => {
+    if (cwd === undefined) return undefined;
+
+    const normalized = cwd.trim();
+    return normalized === '' ? undefined : normalized;
+};
 
 /**
  * Concrete {@link ProcessRunner} using Node's `child_process.spawn`.
@@ -20,15 +28,21 @@ export class NodeProcessRunner implements ProcessRunner {
         options: ProcessRunOptions = {},
     ): Promise<ProcessRunResult> {
         const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const env = this.buildEnv(options.env);
+        const executableCommand = resolveExecutableCommand({
+            command,
+            env,
+        });
+        const cwd = normalizeWorkingDirectory(options.cwd);
 
         return new Promise<ProcessRunResult>((resolve, reject) => {
             let child;
             try {
-                child = spawn(command, [...args], {
-                    cwd: options.cwd,
-                    env: this.buildEnv(options.env),
+                child = spawn(executableCommand.command, [...args], {
+                    cwd,
+                    env,
                     stdio: ['pipe', 'pipe', 'pipe'],
-                    shell: false,
+                    shell: executableCommand.shell,
                     windowsHide: true,
                 });
             } catch (error) {

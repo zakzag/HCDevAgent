@@ -27,6 +27,28 @@ export class IssueTrackerModule implements IssueTrackerOperations {
         return issues[0];
     }
 
+    /** Poll for the next issue in PLAN status. */
+    public async fetchNextPlanIssue(): Promise<Issue | null> {
+        this.logger.debug('Polling for next issue in Plan');
+        const issues = await this.reader.fetchIssuesByStatus(WORKFLOW_STATUSES.PLAN);
+        if (issues.length === 0) {
+            return null;
+        }
+        return issues[0];
+    }
+
+    /** Poll for the next approved issue that still lacks Implementation Plan For AI. */
+    public async fetchNextReadyForImplementationIssue(): Promise<Issue | null> {
+        this.logger.debug('Polling for next approved issue awaiting Implementation Plan For AI');
+        const issues = await this.reader.fetchIssuesByStatus(WORKFLOW_STATUSES.READY_FOR_IMPLEMENTATION);
+        const pendingIssue = issues.find((issue) => {
+            const planForAi = issue.customFields[JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN_FOR_AI];
+            return planForAi === null || planForAi.trim().length === 0;
+        });
+
+        return pendingIssue ?? null;
+    }
+
     /** Transition issue to ISSUE INVESTIGATION. */
     public async startInvestigation(issueKey: string): Promise<void> {
         this.logger.info('Starting investigation', { issueKey });
@@ -92,11 +114,19 @@ export class IssueTrackerModule implements IssueTrackerOperations {
         return this.reader.getCustomField(issueKey, JIRA_CUSTOM_FIELDS.PR_URL);
     }
 
-    // ── Phase 2+ methods (not yet implemented) ───────────────────────────
+    // ── Phase 2+ methods (planning implemented; later phases still pending) ──
 
-    /** Write Implementation Plan + Implementation Plan For AI fields + transition to PLAN REVIEW. */
-    public async moveToPlanReview(issueKey: string, plan: string, planForAi: string): Promise<void> {
-        throw new NotImplementedError('moveToPlanReview', { issueKey });
+    /** Write Implementation Plan field + transition to PLAN REVIEW. */
+    public async moveToPlanReview(issueKey: string, plan: string): Promise<void> {
+        this.logger.info('Moving to Plan Review', { issueKey });
+        await this.writer.updateCustomField(issueKey, JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN, plan);
+        await this.transitionStatusIfNeeded(issueKey, WORKFLOW_STATUSES.PLAN_REVIEW);
+    }
+
+    /** Persist the machine-readable implementation plan after human approval. */
+    public async storePlanForAi(issueKey: string, planForAi: string): Promise<void> {
+        this.logger.info('Storing Implementation Plan For AI', { issueKey });
+        await this.writer.updateCustomField(issueKey, JIRA_CUSTOM_FIELDS.IMPLEMENTATION_PLAN_FOR_AI, planForAi);
     }
 
     /** Transition to IN PROGRESS + write Branch Name field. */

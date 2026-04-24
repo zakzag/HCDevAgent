@@ -9,6 +9,8 @@ export type PromptKey =
     | 'planning.user'
     | 'planning.refine.system'
     | 'planning.refine.user'
+    | 'planning.approved.system'
+    | 'planning.approved.user'
     | 'implementation.system'
     | 'implementation.user'
     | 'implementation.pr-feedback.user'
@@ -51,8 +53,18 @@ export type PlanningRefineSystemVars = Record<never, string>;
 
 /** Variables for the plan-refinement user prompt. */
 export interface PlanningRefineUserVars {
-    readonly existingPlanForAi: string;
+    readonly existingPlan: string;
     readonly rejectionComment: string;
+    readonly descriptionForAi: string;
+}
+
+/** Variables for the approved-plan system prompt (static, no placeholders). */
+export type PlanningApprovedSystemVars = Record<never, string>;
+
+/** Variables for the approved-plan user prompt. */
+export interface PlanningApprovedUserVars {
+    readonly descriptionForAi: string;
+    readonly approvedPlan: string;
 }
 
 /** Variables for the implementation system prompt (static, no placeholders). */
@@ -89,6 +101,8 @@ export interface PromptVariables {
     'planning.user': PlanningUserVars;
     'planning.refine.system': PlanningRefineSystemVars;
     'planning.refine.user': PlanningRefineUserVars;
+    'planning.approved.system': PlanningApprovedSystemVars;
+    'planning.approved.user': PlanningApprovedUserVars;
     'implementation.system': ImplementationSystemVars;
     'implementation.user': ImplementationUserVars;
     'implementation.pr-feedback.user': ImplementationPrFeedbackUserVars;

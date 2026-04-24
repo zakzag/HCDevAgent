@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
-import type { AiClient, ConfigProvider, Logger } from '@hcdevagent/shared';
+import type { AiClient, AiCompletionOptions, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS, IntegrationError } from '@hcdevagent/shared';
+import { AiModelSelector } from './AiModelSelector.js';
 
 const DEFAULT_COPILOT_API_URL = 'https://models.inference.ai.azure.com';
 const DEFAULT_COPILOT_MODEL = 'gpt-4o';
@@ -75,6 +76,7 @@ export class GitHubCopilotClient implements AiClient {
     private readonly apiUrl: string;
     private readonly model: string;
     private readonly authHeader: string;
+    private readonly modelSelector: AiModelSelector;
 
     public constructor(
         @inject(SYMBOLS.ConfigProvider) configProvider: ConfigProvider,
@@ -84,27 +86,36 @@ export class GitHubCopilotClient implements AiClient {
         this.apiUrl = configProvider.getOptional('COPILOT_API_URL') ?? DEFAULT_COPILOT_API_URL;
         this.model = configProvider.getOptional('COPILOT_MODEL') ?? DEFAULT_COPILOT_MODEL;
         this.authHeader = `Bearer ${token}`;
+        this.modelSelector = new AiModelSelector(configProvider);
     }
 
     /**
      * Sends a prompt pair to the GitHub Copilot completions endpoint
      * and returns the raw response text.
      */
-    public async complete(systemPrompt: string, userPrompt: string): Promise<string> {
-        this.logger.debug('Sending completion request to GitHub Models', { model: this.model });
+    public async complete(
+        systemPrompt: string,
+        userPrompt: string,
+        options?: AiCompletionOptions,
+    ): Promise<string> {
+        const requestedModel = this.modelSelector.resolveModel(this.model, options) ?? this.model;
+        const fallbackModels = [this.model, DEFAULT_COPILOT_MODEL]
+            .filter((candidate, index, all) => candidate !== requestedModel && all.indexOf(candidate) === index);
 
-        return this.completeWithModel(this.model, systemPrompt, userPrompt, false);
+        return this.completeWithModel(requestedModel, systemPrompt, userPrompt, fallbackModels, options?.role);
     }
 
     private async completeWithModel(
         model: string,
         systemPrompt: string,
         userPrompt: string,
-        hasRetriedWithDefaultModel: boolean,
+        fallbackModels: ReadonlyArray<string>,
+        role: AiCompletionOptions['role'],
     ): Promise<string> {
         this.logger.debug('Sending completion request to GitHub Models', {
             model,
-            retriedWithDefaultModel: hasRetriedWithDefaultModel,
+            role,
+            fallbackModels,
         });
 
         const url = `${this.apiUrl}/chat/completions`;
@@ -134,13 +145,14 @@ export class GitHubCopilotClient implements AiClient {
         if (!response.ok) {
             const body = await response.text().catch(() => '');
 
-            if (!hasRetriedWithDefaultModel && model !== DEFAULT_COPILOT_MODEL && isUnknownModelError(response.status, body)) {
-                this.logger.warn('Configured COPILOT_MODEL is not recognized by GitHub Models; retrying with default model', {
+            if (isUnknownModelError(response.status, body) && fallbackModels.length > 0) {
+                const [fallbackModel, ...remainingFallbacks] = fallbackModels;
+                this.logger.warn('Configured GitHub Models model is not recognized; retrying with fallback model', {
                     configuredModel: model,
-                    fallbackModel: DEFAULT_COPILOT_MODEL,
+                    fallbackModel,
                     status: response.status,
                 });
-                return this.completeWithModel(DEFAULT_COPILOT_MODEL, systemPrompt, userPrompt, true);
+                return this.completeWithModel(fallbackModel, systemPrompt, userPrompt, remainingFallbacks, role);
             }
 
             throw new IntegrationError(`GitHub Models API returned ${response.status}`, {

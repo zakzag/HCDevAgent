@@ -1,13 +1,14 @@
-import type { PlanResult } from '../types/phases.types.js';
-
 /**
  * Generates implementation plans from the enhanced Description For AI.
  * Matches 3-interfaces.md §5.
  */
 export interface PlanGenerator {
-    /** Generate both plan formats from the enhanced description. */
-    generatePlan(descriptionForAi: string, feedback?: string): Promise<PlanResult>;
+    /** Generate the reviewer-facing implementation plan from the enhanced description. */
+    generatePlan(descriptionForAi: string, feedback?: string): Promise<string>;
 
-    /** Re-generate both plans incorporating human rejection feedback. */
-    refinePlan(existingPlanForAi: string, rejectionComment: string): Promise<PlanResult>;
+    /** Re-generate the reviewer-facing plan incorporating human rejection feedback. */
+    refinePlan(existingPlan: string, rejectionComment: string, descriptionForAi: string): Promise<string>;
+
+    /** Generate the machine-readable implementation plan once the human plan is approved. */
+    generatePlanForAi(descriptionForAi: string, approvedPlan: string): Promise<string>;
 }

@@ -26,6 +26,11 @@ describe('InMemoryPromptRegistry', () => {
             expect(result.length).toBeGreaterThan(0);
         });
 
+        it('returns a non-empty string for planning.approved.system', () => {
+            const result = registry.getPrompt('planning.approved.system', {});
+            expect(result.length).toBeGreaterThan(0);
+        });
+
         it('returns a non-empty string for implementation.system', () => {
             const result = registry.getPrompt('implementation.system', {});
             expect(result.length).toBeGreaterThan(0);
@@ -88,11 +93,22 @@ describe('InMemoryPromptRegistry', () => {
 
         it('resolves planning.refine.user with both variables', () => {
             const result = registry.getPrompt('planning.refine.user', {
-                existingPlanForAi: '## META\n- issueKey: TEST-1',
+                existingPlan: '## Summary\nRefine auth plan',
                 rejectionComment: 'Missing tests',
+                descriptionForAi: '## Summary\nImplement auth',
             });
-            expect(result).toContain('TEST-1');
+            expect(result).toContain('Refine auth plan');
             expect(result).toContain('Missing tests');
+            expect(result).toContain('Implement auth');
+        });
+
+        it('resolves planning.approved.user with approved reviewer plan and description', () => {
+            const result = registry.getPrompt('planning.approved.user', {
+                descriptionForAi: '## Summary\nImplement auth',
+                approvedPlan: '## Summary\nApproved plan',
+            });
+            expect(result).toContain('Implement auth');
+            expect(result).toContain('Approved plan');
         });
 
         it('resolves implementation.user with plan and codebase', () => {

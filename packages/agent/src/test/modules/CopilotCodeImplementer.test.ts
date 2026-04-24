@@ -39,6 +39,7 @@ describe('CopilotCodeImplementer', () => {
             expect(result.filePath).toBe('src/auth.ts');
             expect(result.diff).toContain('src/auth.ts');
             expect(result.language).toBe('typescript');
+            expect(aiClient.complete).toHaveBeenCalledWith(expect.any(String), expect.any(String), { role: 'implementation' });
         });
 
         it('includes plan and codebase context in prompt', async () => {

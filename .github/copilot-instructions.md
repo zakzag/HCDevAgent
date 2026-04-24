@@ -21,7 +21,6 @@ Used tech debt and Libraries
 ## General
 
 * always keep SOLID principles and CLEAN CODING in mind
-
   * one function must have one responsibility
   * classes must be open for extension, but closed for modification
   * classes must depend on abstractions, not concretions

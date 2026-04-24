@@ -70,11 +70,27 @@ describe('CopilotCliClient', () => {
             expect(args[args.indexOf('--model') + 1]).toBe('gpt-4.1');
         });
 
+        it('uses an explicit per-request model override when provided', async () => {
+            baseline.runner.queueResult({ stdout: 'Hello result' });
+            await baseline.client.complete('sys', 'usr', { model: 'gpt-4.1-mini' });
+            const [, args] = baseline.runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
+            expect(args[args.indexOf('--model') + 1]).toBe('gpt-4.1-mini');
+        });
+
+        it('uses a role-specific env model when configured', async () => {
+            const { client, runner } = buildClient({ AI_MODEL_INVESTIGATION: 'gpt-5-mini' });
+            runner.queueResult({ stdout: 'Hello result' });
+            await client.complete('sys', 'usr', { role: 'investigation' });
+            const [, args] = runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
+            expect(args[args.indexOf('--model') + 1]).toBe('gpt-5-mini');
+        });
+
         it('always passes --no-color', async () => {
             baseline.runner.queueResult({ stdout: 'Hello result' });
             await baseline.client.complete('sys', 'usr');
             const [, args] = baseline.runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
             expect(args).toContain('--no-color');
+            expect(args).toContain('--silent');
         });
 
         it('passes --allow-all-tools only when COPILOT_CLI_ALLOW_TOOLS is truthy', async () => {
@@ -90,17 +106,20 @@ describe('CopilotCliClient', () => {
             expect(args).toContain('--allow-all-tools');
         });
 
-        it('sends the combined system + user prompt via -p', async () => {
+        it('sends the combined system + user prompt via stdin instead of argv', async () => {
             baseline.runner.queueResult({ stdout: 'Hello result' });
             await baseline.client.complete('SYS-CONTENT', 'USR-CONTENT');
-            const [, args] = baseline.runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
-            const pIndex = args.indexOf('-p');
-            expect(pIndex).toBeGreaterThanOrEqual(0);
-            const prompt = args[pIndex + 1] ?? '';
-            expect(prompt).toContain('SYS-CONTENT');
-            expect(prompt).toContain('USR-CONTENT');
-            expect(prompt).toContain('<<SYSTEM>>');
-            expect(prompt).toContain('<<USER>>');
+            const call = baseline.runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { stdin?: string },
+            ];
+            expect(call[1]).not.toContain('-p');
+            expect(call[1]).not.toContain('--prompt');
+            expect(call[2].stdin).toContain('SYS-CONTENT');
+            expect(call[2].stdin).toContain('USR-CONTENT');
+            expect(call[2].stdin).toContain('<<SYSTEM>>');
+            expect(call[2].stdin).toContain('<<USER>>');
         });
 
         it('appends COPILOT_CLI_EXTRA_ARGS tokens', async () => {
@@ -129,12 +148,55 @@ describe('CopilotCliClient', () => {
             const call = baseline.runner.run.mock.calls[0] as [
                 string,
                 ReadonlyArray<string>,
-                { cwd?: string; env?: Record<string, string>; timeoutMs?: number },
+                { cwd?: string; env?: Record<string, string>; timeoutMs?: number; stdin?: string },
             ];
             expect(call[2].cwd).toBe('C:/work');
             expect(call[2].env?.NO_COLOR).toBe('1');
             expect(call[2].env?.TERM).toBe('dumb');
             expect(call[2].timeoutMs).toBe(5_000);
+            expect(call[2].stdin).toBeTypeOf('string');
+        });
+
+        it('passes long prompts through stdin without inflating the argument list', async () => {
+            const longPrompt = 'X'.repeat(20_000);
+            baseline.runner.queueResult({ stdout: 'Hello result' });
+
+            await baseline.client.complete('sys', longPrompt);
+
+            const call = baseline.runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { stdin?: string },
+            ];
+            expect(call[1].join(' ')).not.toContain(longPrompt);
+            expect(call[2].stdin).toContain(longPrompt);
+        });
+
+        it('omits cwd when configured working-directory values are blank', async () => {
+            const { client, runner } = buildClient({
+                COPILOT_CLI_WORKING_DIR: '',
+                WORKSPACE_PATH: '',
+            });
+            runner.queueResult({ stdout: 'Hello result' });
+
+            await client.complete('sys', 'usr');
+
+            const call = runner.run.mock.calls[0] as [
+                string,
+                ReadonlyArray<string>,
+                { cwd?: string; env?: Record<string, string>; timeoutMs?: number },
+            ];
+            expect(call[2].cwd).toBeUndefined();
+        });
+
+        it('falls back to the default binary when COPILOT_CLI_BIN is blank', async () => {
+            const { client, runner } = buildClient({ COPILOT_CLI_BIN: '' });
+            runner.queueResult({ stdout: 'Hello result' });
+
+            await client.complete('sys', 'usr');
+
+            const [bin] = runner.run.mock.calls[0] as [string, ReadonlyArray<string>];
+            expect(bin).toBe('copilot');
         });
     });
 
@@ -165,10 +227,10 @@ describe('CopilotCliClient', () => {
         it('throws IntegrationError with install hint when binary is missing', async () => {
             const err = Object.assign(new Error('spawn copilot ENOENT'), { code: 'ENOENT' });
             baseline.runner.queueError(err);
-            baseline.runner.queueError(err);
-            await expect(baseline.client.complete('s', 'u')).rejects.toBeInstanceOf(IntegrationError);
-            await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
-                message: expect.stringContaining('not found'),
+            const completionPromise = baseline.client.complete('s', 'u');
+            await expect(completionPromise).rejects.toBeInstanceOf(IntegrationError);
+            await expect(completionPromise).rejects.toMatchObject({
+                message: expect.stringContaining('COPILOT_CLI_BIN'),
             });
         });
 
@@ -220,6 +282,18 @@ describe('CopilotCliClient', () => {
             });
             await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
                 message: expect.stringContaining('exited with code 2'),
+            });
+        });
+
+        it('throws a dedicated error when the CLI reports command-line length overflow', async () => {
+            baseline.runner.queueResult({
+                stdout: '',
+                stderr: 'The command line is too long.\r\n',
+                exitCode: 1,
+            });
+
+            await expect(baseline.client.complete('s', 'u')).rejects.toMatchObject({
+                message: expect.stringContaining('command line limit exceeded'),
             });
         });
 

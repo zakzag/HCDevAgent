@@ -76,7 +76,7 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
             relatedIssuesSection: buildRelatedIssuesSection(relatedIssues),
         });
 
-        const raw = await this.aiClient.complete(systemPrompt, userPrompt);
+        const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'investigation' });
         const parsed = parseInvestigationResponse(raw, issue.key);
 
         const qualityReport: QualityReport = {

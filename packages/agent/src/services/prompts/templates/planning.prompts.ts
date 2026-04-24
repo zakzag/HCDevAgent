@@ -2,16 +2,20 @@ import type { PromptKey } from '@hcdevagent/shared';
 
 /**
  * Planning prompt templates.
- * Keys: 'planning.system', 'planning.user', 'planning.refine.system', 'planning.refine.user'
+ * Keys: 'planning.system', 'planning.user', 'planning.refine.system',
+ * 'planning.refine.user', 'planning.approved.system', 'planning.approved.user'
  */
 export const planningPrompts: Pick<
     Record<PromptKey, string>,
-    'planning.system' | 'planning.user' | 'planning.refine.system' | 'planning.refine.user'
+    | 'planning.system'
+    | 'planning.user'
+    | 'planning.refine.system'
+    | 'planning.refine.user'
+    | 'planning.approved.system'
+    | 'planning.approved.user'
 > = {
-    'planning.system': `You are a senior software architect creating implementation plans for a developer agent.
-You produce TWO versions of the same plan simultaneously:
-
-1. "plan" — Human-readable markdown for the reviewer. Use this exact structure:
+    'planning.system': `You are a senior software architect creating a human-reviewable implementation plan.
+You produce ONLY the reviewer-facing markdown plan. Use this exact structure:
 ## Summary
 Brief overview of what will be implemented.
 
@@ -37,7 +41,52 @@ Any risks, assumptions, or open questions.
 - [ ] No regressions introduced
 - [ ] Documentation updated
 
-2. "planForAi" — Strict machine-parseable markdown for the implementation agent. ALL sections are mandatory:
+Respond with ONLY a valid JSON object — no markdown fences, no explanation:
+{
+  "plan": string
+}`,
+
+    /**
+     * Basic planning prompt.
+     * Used during initial plan creation.
+     * Parameters:
+     * - descriptionForAi: string - Structured description produced by investigation phase
+     *   Contains sections: Summary, Goal, Requirements, Acceptance Criteria, Constraints, Context
+     * - feedbackSection: string - (Optional) Human feedback for plan refinement
+     *   Empty string on first attempt, contains formatted feedback on refinement
+     */
+    'planning.user': `Description For AI:
+\${descriptionForAi}\${feedbackSection}`,
+
+    'planning.refine.system': `You are a senior software architect refining an implementation plan based on human feedback.
+The human has reviewed and rejected the previous plan. Incorporate their feedback fully.
+Produce only the reviewer-facing plan JSON response from the original planning task.
+Respond with ONLY a valid JSON object — no markdown fences, no explanation:
+{
+  "plan": string
+}`,
+
+    /**
+     * Plan refinement prompt when human rejects a plan.
+     * Used when transitioning from PLAN REVIEW back to PLAN status.
+     * Parameters:
+     * - existingPlan: string - The human-readable plan that was rejected
+     * - rejectionComment: string - Human feedback explaining why plan was rejected
+     *   Extracted from Jira issue comments when plan is rejected
+     * - descriptionForAi: string - Original structured implementation context to preserve requirements
+     */
+    'planning.refine.user': `Description For AI:
+\${descriptionForAi}
+
+Existing reviewer plan:
+\${existingPlan}
+
+Rejection feedback from human reviewer:
+\${rejectionComment}`,
+
+    'planning.approved.system': `You are a senior software architect converting an approved reviewer plan into a strict machine-readable implementation contract.
+Use the approved plan as the primary source of truth and the Description For AI as supporting context.
+Return ONLY the machine-readable markdown plan with ALL sections present:
 ## META
 - issueKey: (derived from context or UNKNOWN)
 - baseBranch: main
@@ -73,44 +122,13 @@ Single-paragraph machine-readable summary.
 
 Respond with ONLY a valid JSON object — no markdown fences, no explanation:
 {
-  "plan": string,
   "planForAi": string
 }`,
 
-    /**
-     * Basic planning prompt.
-     * Used during initial plan creation.
-     * Parameters:
-     * - descriptionForAi: string - Structured description produced by investigation phase
-     *   Contains sections: Summary, Goal, Requirements, Acceptance Criteria, Constraints, Context
-     * - feedbackSection: string - (Optional) Human feedback for plan refinement
-     *   Empty string on first attempt, contains formatted feedback on refinement
-     */
-    'planning.user': `Description For AI:
-\${descriptionForAi}\${feedbackSection}`,
+    'planning.approved.user': `Description For AI:
+\${descriptionForAi}
 
-    'planning.refine.system': `You are a senior software architect refining an implementation plan based on human feedback.
-The human has reviewed and rejected the previous plan. Incorporate their feedback fully.
-Produce the same two-format JSON response as the original planning task.
-Respond with ONLY a valid JSON object — no markdown fences, no explanation:
-{
-  "plan": string,
-  "planForAi": string
-}`,
-
-    /**
-     * Plan refinement prompt when human rejects a plan.
-     * Used when transitioning from PLAN REVIEW back to PLAN status.
-     * Parameters:
-     * - existingPlanForAi: string - The machine-readable plan that was rejected
-     *   Full structured markdown with META, STEPS, TESTS, VERIFICATION sections
-     * - rejectionComment: string - Human feedback explaining why plan was rejected
-     *   Extracted from Jira issue comments when plan is rejected
-     */
-    'planning.refine.user': `Existing plan (machine format):
-\${existingPlanForAi}
-
-Rejection feedback from human reviewer:
-\${rejectionComment}`,
+Approved reviewer plan:
+\${approvedPlan}`,
 };
 

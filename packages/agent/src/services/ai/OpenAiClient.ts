@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
-import type { AiClient, ConfigProvider, Logger } from '@hcdevagent/shared';
+import type { AiClient, AiCompletionOptions, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS } from '@hcdevagent/shared';
+import { AiModelSelector } from './AiModelSelector.js';
 
 /**
  * Client for communicating with the OpenAI API.
@@ -10,6 +11,7 @@ import { SYMBOLS } from '@hcdevagent/shared';
 export class OpenAiClient implements AiClient {
   private readonly apiKey: string;
   private readonly model: string;
+  private readonly modelSelector: AiModelSelector;
 
   constructor(
     @inject(SYMBOLS.ConfigProvider) configProvider: ConfigProvider,
@@ -17,13 +19,19 @@ export class OpenAiClient implements AiClient {
   ) {
     this.apiKey = configProvider.getRequired('OPENAI_API_KEY');
     this.model = configProvider.getOptional('OPENAI_MODEL') ?? 'gpt-4';
+    this.modelSelector = new AiModelSelector(configProvider);
   }
 
   /**
    * Sends a prompt to the OpenAI completions API and returns the response text.
    */
-  public async complete(systemPrompt: string, userPrompt: string): Promise<string> {
-    this.logger.debug('Sending completion request to OpenAI', { model: this.model });
+  public async complete(
+    systemPrompt: string,
+    userPrompt: string,
+    options?: AiCompletionOptions,
+  ): Promise<string> {
+    const model = this.modelSelector.resolveModel(this.model, options) ?? this.model;
+    this.logger.debug('Sending completion request to OpenAI', { model, role: options?.role });
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -31,7 +39,7 @@ export class OpenAiClient implements AiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: this.model,
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

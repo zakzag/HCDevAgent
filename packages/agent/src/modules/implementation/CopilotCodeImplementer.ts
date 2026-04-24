@@ -91,7 +91,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
             codebaseContext: buildCodebaseContext(codebase),
         });
 
-        const raw = await this.aiClient.complete(systemPrompt, userPrompt);
+        const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
         const result = parseResponse(raw, 'implementPlan');
 
         this.logger.debug('Implementation complete', { filePath: result.filePath });
@@ -113,7 +113,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
             codebaseContext: buildCodebaseContext(codebase),
         });
 
-        const raw = await this.aiClient.complete(systemPrompt, userPrompt);
+        const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
         const result = parseResponse(raw, 'applyPrFeedback');
 
         this.logger.debug('PR feedback applied', { filePath: result.filePath });
@@ -135,7 +135,7 @@ export class CopilotCodeImplementer implements CodeImplementer {
             codebaseContext: buildCodebaseContext(codebase),
         });
 
-        const raw = await this.aiClient.complete(systemPrompt, userPrompt);
+        const raw = await this.aiClient.complete(systemPrompt, userPrompt, { role: 'implementation' });
         const result = parseResponse(raw, 'answerClarification');
 
         this.logger.debug('Clarification incorporated', { filePath: result.filePath });

@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import type {
     IssueTrackerOperations,
     IssueInvestigator,
+    PlanGenerator,
     StorageAdapter,
     EventBus,
     Logger,
@@ -27,6 +28,7 @@ export class Conductor {
     constructor(
         @inject(SYMBOLS.IssueTrackerOperations) private readonly issueOps: IssueTrackerOperations,
         @inject(SYMBOLS.IssueInvestigator) private readonly investigator: IssueInvestigator,
+        @inject(SYMBOLS.PlanGenerator) private readonly planGenerator: PlanGenerator,
         @inject(SYMBOLS.StorageAdapter) private readonly storage: StorageAdapter,
         @inject(SYMBOLS.EventBus) private readonly eventBus: EventBus,
         @inject(SYMBOLS.Logger) private readonly logger: Logger,
@@ -82,18 +84,36 @@ export class Conductor {
         this.logger.debug('Conductor tick starting');
         this.eventBus.emit(EVENT_NAMES.CONDUCTOR_POLL, {});
 
-        // 1. Poll for next issue
-        const issue = await this.issueOps.fetchNextIssue();
-        if (!issue) {
-            this.logger.debug('No issues in queue, idle');
-            this.eventBus.emit(EVENT_NAMES.CONDUCTOR_IDLE, {});
+        // 1. Poll for next issue across active workflow entry points.
+        const triageIssue = await this.issueOps.fetchNextIssue();
+        if (triageIssue) {
+            this.logger.info('Issue picked up for investigation', { issueKey: triageIssue.key, summary: triageIssue.summary });
+            this.eventBus.emit(EVENT_NAMES.ISSUE_PICKED, { issueKey: triageIssue.key });
+            await this.processInvestigation(triageIssue);
             return;
         }
 
-        this.logger.info('Issue picked up', { issueKey: issue.key, summary: issue.summary });
-        this.eventBus.emit(EVENT_NAMES.ISSUE_PICKED, { issueKey: issue.key });
+        const planIssue = await this.issueOps.fetchNextPlanIssue();
+        if (planIssue) {
+            this.logger.info('Issue picked up for planning', { issueKey: planIssue.key, summary: planIssue.summary });
+            this.eventBus.emit(EVENT_NAMES.ISSUE_PICKED, { issueKey: planIssue.key });
+            await this.processPlanning(planIssue);
+            return;
+        }
 
-        await this.processInvestigation(issue);
+        const approvedIssue = await this.issueOps.fetchNextReadyForImplementationIssue();
+        if (approvedIssue) {
+            this.logger.info('Issue picked up for post-approval plan-for-AI generation', {
+                issueKey: approvedIssue.key,
+                summary: approvedIssue.summary,
+            });
+            this.eventBus.emit(EVENT_NAMES.ISSUE_PICKED, { issueKey: approvedIssue.key });
+            await this.processApprovedPlan(approvedIssue);
+            return;
+        }
+
+        this.logger.debug('No issues in queue, idle');
+        this.eventBus.emit(EVENT_NAMES.CONDUCTOR_IDLE, {});
     }
 
     /** Processes the investigation phase for a single issue. */
@@ -138,6 +158,74 @@ export class Conductor {
             await this.issueOps.markFailed(issueKey, 'Investigation returned an ambiguous result');
             this.eventBus.emit(EVENT_NAMES.ISSUE_FAILED, { issueKey });
         }
+    }
+
+    /** Processes the planning phase for a single issue in PLAN status. */
+    private async processPlanning(issue: Issue): Promise<void> {
+        const { key: issueKey } = issue;
+
+        if (await this.isCancelled(issueKey)) return;
+
+        const descriptionForAi = await this.issueOps.getDescriptionForAi(issueKey);
+        if (!descriptionForAi) {
+            await this.issueOps.markFailed(issueKey, 'Description For AI is missing for planning');
+            this.eventBus.emit(EVENT_NAMES.ISSUE_FAILED, { issueKey });
+            return;
+        }
+
+        const existingPlan = await this.issueOps.getPlan(issueKey);
+        const latestHumanReply = await this.issueOps.getLatestHumanReply(issueKey);
+        const rejectionComment = latestHumanReply?.body.trim() ?? '';
+        const isRefinement = existingPlan !== null && existingPlan.trim().length > 0 && rejectionComment.length > 0;
+
+        if (isRefinement) {
+            this.logger.info('Plan rejected by human reviewer, refining plan', { issueKey });
+            this.eventBus.emit(EVENT_NAMES.PLAN_REJECTED, { issueKey });
+        }
+
+        this.eventBus.emit(EVENT_NAMES.PLAN_STARTED, {
+            issueKey,
+            mode: isRefinement ? 'refine' : 'generate',
+        });
+
+        const plan = isRefinement
+            ? await this.planGenerator.refinePlan(existingPlan, rejectionComment, descriptionForAi)
+            : await this.planGenerator.generatePlan(descriptionForAi);
+
+        if (await this.isCancelled(issueKey)) return;
+
+        await this.issueOps.moveToPlanReview(issueKey, plan);
+        this.logger.info('Reviewer-facing plan generated and moved to Plan Review', { issueKey });
+    }
+
+    /** Generates `Implementation Plan For AI` after the reviewer plan has been approved. */
+    private async processApprovedPlan(issue: Issue): Promise<void> {
+        const { key: issueKey } = issue;
+
+        if (await this.isCancelled(issueKey)) return;
+
+        const descriptionForAi = await this.issueOps.getDescriptionForAi(issueKey);
+        if (!descriptionForAi) {
+            await this.issueOps.markFailed(issueKey, 'Description For AI is missing for post-approval plan generation');
+            this.eventBus.emit(EVENT_NAMES.ISSUE_FAILED, { issueKey });
+            return;
+        }
+
+        const approvedPlan = await this.issueOps.getPlan(issueKey);
+        if (!approvedPlan) {
+            await this.issueOps.markFailed(issueKey, 'Implementation Plan is missing for post-approval plan generation');
+            this.eventBus.emit(EVENT_NAMES.ISSUE_FAILED, { issueKey });
+            return;
+        }
+
+        this.eventBus.emit(EVENT_NAMES.PLAN_STARTED, { issueKey, mode: 'generatePlanForAi' });
+        const planForAi = await this.planGenerator.generatePlanForAi(descriptionForAi, approvedPlan);
+
+        if (await this.isCancelled(issueKey)) return;
+
+        await this.issueOps.storePlanForAi(issueKey, planForAi);
+        this.eventBus.emit(EVENT_NAMES.PLAN_COMPLETED, { issueKey });
+        this.logger.info('Implementation Plan For AI generated after plan approval', { issueKey });
     }
 
     /** Wraps tick() in error handling and concurrency guard. */

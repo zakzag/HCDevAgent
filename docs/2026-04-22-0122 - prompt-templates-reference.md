@@ -137,22 +137,19 @@ ${investigatorSettingsContext}${commentsSection}${relatedIssuesSection}
 
 ### `planning.system`
 
-**Goal:** Defines the AI's role as a senior software architect creating dual-format implementation plans: one human-readable for reviewers, one machine-parseable for the implementation agent.
+**Goal:** Defines the AI's role as a senior software architect creating the human-reviewable implementation plan used during `PLAN`.
 
 **Where Used:** Planning Module (`packages/agent/src/modules/planning/`) when processing issues in `PLAN` status.
 
 **Process Details:**
-- Produces TWO versions of the same plan simultaneously:
-  1. **"plan"** — Human-readable markdown with sections: Summary, Approach, Steps, Files Affected, Testing Strategy, Risks & Open Questions, Checklist
-  2. **"planForAi"** — Strict machine-parseable markdown with sections: META, DESCRIPTION, STEPS (with structured fields), TESTS (with test cases), VERIFICATION
+- Produces only the reviewer-facing **"plan"** markdown with sections: Summary, Approach, Steps, Files Affected, Testing Strategy, Risks & Open Questions, Checklist
 
 **Parameters:** None (system prompt)
 
 **Output Format:** Expects the AI to respond with a JSON object containing:
 ```json
 {
-  "plan": string,        // Human-readable markdown
-  "planForAi": string    // Machine-parseable markdown with strict structure
+  "plan": string         // Human-readable markdown
 }
 ```
 
@@ -167,17 +164,10 @@ ${investigatorSettingsContext}${commentsSection}${relatedIssuesSection}
 - Risks & Open Questions: Known risks and assumptions
 - Checklist: Implementation completion checklist
 
-**Machine Plan (`planForAi`):**
-- META: `issueKey`, `baseBranch`, `targetBranch`, `estimatedFiles`, `estimatedSteps`
-- DESCRIPTION: Single-paragraph summary
-- STEPS: Each step has `action` (create/modify/delete), `file`, `description`, `dependencies`, `verification`
-- TESTS: Each test has `file`, `covers` (which steps), `cases` (happy path, error case, edge case)
-- VERIFICATION: Checklist for validation
-
 **Workflow Impact:**
-- Both `plan` (human-readable) and `planForAi` (machine-readable) written to Jira custom fields
+- `plan` is written to the `Implementation Plan` Jira custom field
 - Issue transitions to `PLAN REVIEW` status for human approval
-- If approved: moves to `READY FOR IMPLEMENTATION`
+- If approved: the agent later generates `planForAi` from the approved reviewer plan while the issue is in `READY FOR IMPLEMENTATION`
 - If rejected: moves back to `PLAN` with refinement prompts
 
 ---
@@ -207,6 +197,23 @@ ${descriptionForAi}${feedbackSection}
 
 ---
 
+### `planning.approved.system`
+
+**Goal:** Defines the AI's role when converting an approved reviewer plan into `Implementation Plan For AI`.
+
+**Where Used:** Planning Module after the issue reaches `READY FOR IMPLEMENTATION`.
+
+**Process Details:**
+- Uses the approved human plan as the primary source of truth
+- Uses `Description For AI` as supporting context
+- Produces only the machine-readable `planForAi` markdown with required `META`, `DESCRIPTION`, `STEPS`, `TESTS`, and `VERIFICATION` sections
+
+### `planning.approved.user`
+
+**Goal:** Provides the approved reviewer plan and the original `Description For AI` so the AI can create the machine-readable implementation contract.
+
+---
+
 ### `planning.refine.system`
 
 **Goal:** Defines the AI's role when refining a rejected implementation plan based on human feedback.
@@ -216,15 +223,14 @@ ${descriptionForAi}${feedbackSection}
 **Process Details:**
 - Human has reviewed and rejected the previous plan
 - AI must incorporate the feedback fully
-- Produces the same two-format output as the original planning task
+- Produces the same reviewer-facing output as the original planning task
 
 **Parameters:** None (system prompt)
 
 **Output Format:** Same as `planning.system`:
 ```json
 {
-  "plan": string,        // Human-readable markdown
-  "planForAi": string    // Machine-parseable markdown
+  "plan": string         // Human-readable markdown
 }
 ```
 
@@ -237,7 +243,7 @@ ${descriptionForAi}${feedbackSection}
 
 ### `planning.refine.user`
 
-**Goal:** Provides both the existing plan and the human's rejection feedback to enable targeted plan refinement.
+**Goal:** Provides the existing reviewer plan, the original `Description For AI`, and the human's rejection feedback to enable targeted plan refinement.
 
 **Where Used:** Planning Module, paired with `planning.refine.system` when refining a rejected plan.
 
@@ -245,20 +251,24 @@ ${descriptionForAi}${feedbackSection}
 
 | Parameter | Type | Description | Example Values |
 |-----------|------|-------------|----------------|
-| `existingPlanForAi` | `string` | The machine-readable plan that was rejected | Full machine-parseable markdown plan with META, STEPS, TESTS sections |
+| `existingPlan` | `string` | The reviewer-facing plan that was rejected | Human-readable markdown plan with Summary, Steps, Testing Strategy, Checklist |
 | `rejectionComment` | `string` | Human feedback explaining why the plan was rejected | `"The error handling approach is insufficient. Need to add retry logic with exponential backoff."` |
+| `descriptionForAi` | `string` | The structured issue context from investigation | Multi-line markdown with Summary, Goal, Requirements, Acceptance Criteria, Constraints, Context |
 
 **Template Structure:**
 ```
-Existing plan (machine format):
-${existingPlanForAi}
+Description For AI:
+${descriptionForAi}
+
+Existing reviewer plan:
+${existingPlan}
 
 Rejection feedback from human reviewer:
 ${rejectionComment}
 ```
 
 **Notes:**
-- Uses the machine format (`planForAi`) rather than human format because it's more structured for AI processing
+- Uses the reviewer-facing plan because that is the artifact humans actually reject during `PLAN REVIEW`
 - Rejection comment comes from Jira issue comments when human transitions from `PLAN REVIEW` back to `PLAN`
 
 ---
@@ -404,9 +414,9 @@ ${codebaseContext}
 | `relatedIssuesSection` | Jira API (issue links formatted with relationship type) |
 | `descriptionForAi` | Jira custom field `customfield_10164` (set by investigation phase) |
 | `feedbackSection` | Jira issue comments (filtered by context) |
-| `existingPlanForAi` | Jira custom field `customfield_10165` (set by planning phase) |
+| `existingPlan` | Jira custom field `customfield_10197` (reviewer-facing plan set during planning phase) |
 | `rejectionComment` | Jira issue comments (from human when rejecting plan) |
-| `planForAi` | Jira custom field `customfield_10165` (machine-readable plan) |
+| `planForAi` | Jira custom field `customfield_10198` (machine-readable plan generated after approval) |
 | `codebaseContext` | Generated by codebase analyzer (semantic search + file reading) |
 | `reviewComments` | GitHub PR API (review comments aggregated) |
 | `clarification` | Jira issue comments (from human responses) |
