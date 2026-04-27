@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { delimiter, extname, join, normalize } from 'node:path';
-
-const DEFAULT_WINDOWS_EXECUTABLE_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd'] as const;
-const WINDOWS_GLOBAL_NPM_BIN_FOLDER = 'npm';
+import {
+    DEFAULT_WINDOWS_EXECUTABLE_EXTENSIONS,
+    WINDOWS_GLOBAL_NPM_BIN_FOLDER,
+} from './resolveExecutableCommand.constants.js';
 
 /** Describes how a resolved command must be launched. */
 export interface ResolvedExecutableCommand {

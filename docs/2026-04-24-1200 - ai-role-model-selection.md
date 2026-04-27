@@ -66,4 +66,5 @@ This keeps the solution simple:
 
 - `GitHubCopilotClient` keeps its existing unknown-model retry behavior and now retries through configured fallbacks more gracefully.
 - Jira ADF handling is unaffected because model selection stays entirely inside the AI layer.
+- Each AI client now logs `provider`, `role`, and the resolved `model` at request start so operators can see which model was actually selected for a call.
 

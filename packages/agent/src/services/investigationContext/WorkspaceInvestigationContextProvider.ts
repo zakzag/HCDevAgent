@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative, extname } from 'node:path';
+import { join, relative } from 'node:path';
 import type {
     ConfigProvider,
     Issue,
@@ -15,6 +15,18 @@ import {
     type InvestigatorContextCollectionSettings,
     type ProjectSettings,
 } from './projectSettings.js';
+import {
+    buildCandidateFileQueue,
+    isTextLikeFile,
+    sortDirectoryEntries,
+} from './investigationContextFiles.js';
+import {
+    countKeywordHits,
+    extractKeywords,
+    extractRelevantSnippet,
+    normalizeWhitespace,
+    stripUtf8Bom,
+} from './investigationContextText.js';
 
 interface CandidateFile {
     readonly path: string;
@@ -26,71 +38,6 @@ interface CollectedCodeChunks {
     readonly codeChunksContext: string;
     readonly relevantFiles: ReadonlyArray<string>;
 }
-
-const STOP_WORDS = new Set([
-    'about', 'after', 'agent', 'build', 'change', 'changes', 'feature', 'from', 'have', 'into', 'issue', 'jira',
-    'more', 'need', 'please', 'project', 'should', 'that', 'their', 'there', 'this', 'when', 'with', 'would',
-]);
-
-const isTextLikeFile = (filePath: string, settings: InvestigatorContextCollectionSettings): boolean =>
-    settings.includeExtensions.includes(extname(filePath).toLowerCase()) || settings.alwaysIncludeFiles.includes(filePath);
-
-const normalizeWhitespace = (value: string): string => value.replace(/\r\n/g, '\n').trim();
-
-const stripUtf8Bom = (value: string): string => value.replace(/^\uFEFF/, '');
-
-const countKeywordHits = (value: string, keywords: ReadonlyArray<string>): number => {
-    const lower = value.toLowerCase();
-    return keywords.reduce((count, keyword) => count + (lower.includes(keyword) ? 1 : 0), 0);
-};
-
-const extractKeywords = (issue: Issue): Array<string> => {
-    const source = [issue.summary, issue.description, issue.labels.join(' '), ...issue.comments.map((comment) => comment.body)]
-        .join(' ')
-        .toLowerCase();
-
-    const seen = new Set<string>();
-    return source
-        .split(/[^a-z0-9]+/)
-        .filter((token) => token.length >= 4 && !STOP_WORDS.has(token))
-        .filter((token) => {
-            if (seen.has(token)) {
-                return false;
-            }
-            seen.add(token);
-            return true;
-        })
-        .slice(0, 20);
-};
-
-const extractRelevantSnippet = (content: string, keywords: ReadonlyArray<string>, maxChars: number): string => {
-    const normalized = normalizeWhitespace(content);
-    if (normalized.length <= maxChars) {
-        return normalized;
-    }
-
-    const lines = normalized.split('\n');
-    const selectedIndexes = new Set<number>();
-    for (let index = 0; index < lines.length; index += 1) {
-        const lower = lines[index].toLowerCase();
-        if (!keywords.some((keyword) => lower.includes(keyword))) {
-            continue;
-        }
-
-        for (let offset = -1; offset <= 1; offset += 1) {
-            const candidateIndex = index + offset;
-            if (candidateIndex >= 0 && candidateIndex < lines.length) {
-                selectedIndexes.add(candidateIndex);
-            }
-        }
-    }
-
-    const chosenLines = (selectedIndexes.size > 0
-        ? [...selectedIndexes].sort((left, right) => left - right).map((index) => lines[index])
-        : lines.slice(0, Math.max(1, Math.floor(maxChars / 80))));
-    const snippet = chosenLines.join('\n').slice(0, maxChars);
-    return snippet.trim();
-};
 
 /**
  * Loads investigation prompt context from the configured project workspace.
@@ -131,7 +78,7 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
             return this.settingsPromise;
         }
 
-        this.settingsPromise = (async () => {
+        this.settingsPromise = (async (): Promise<ProjectSettings> => {
             const settingsPath = join(this.workspacePath, '.agent', 'project-settings.json');
             try {
                 const raw = await readFile(settingsPath, 'utf8');
@@ -154,12 +101,12 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
         const configuredPath = join(this.workspacePath, settings.investigator.projectDescriptionFile);
         try {
             const raw = await readFile(configuredPath, 'utf8');
-            return normalizeWhitespace(raw);
+            return normalizeWhitespace(stripUtf8Bom(raw));
         } catch {
             const fallbackPath = join(this.workspacePath, 'README.md');
             try {
                 const fallback = await readFile(fallbackPath, 'utf8');
-                return normalizeWhitespace(fallback);
+                return normalizeWhitespace(stripUtf8Bom(fallback));
             } catch {
                 return 'Project description was not found in the configured workspace.';
             }
@@ -168,7 +115,9 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
 
     private async collectCodeChunks(issue: Issue, settings: ProjectSettings): Promise<CollectedCodeChunks> {
         const keywords = extractKeywords(issue);
-        const candidates = await this.collectCandidateFiles('', settings.investigator.contextCollection, []);
+        const contextCollectionSettings = settings.investigator.contextCollection;
+        const discoveredCandidates = await this.collectCandidateFiles('', contextCollectionSettings, []);
+        const candidates = buildCandidateFileQueue(discoveredCandidates, contextCollectionSettings);
         const scoredFiles: Array<CandidateFile> = [];
 
         for (const filePath of candidates) {
@@ -176,7 +125,7 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
                 const absolutePath = join(this.workspacePath, filePath);
                 const content = await readFile(absolutePath, 'utf8');
                 const score = countKeywordHits(filePath, keywords) * 3 + countKeywordHits(content, keywords);
-                const isAlwaysIncluded = settings.investigator.contextCollection.alwaysIncludeFiles.includes(filePath);
+                const isAlwaysIncluded = contextCollectionSettings.alwaysIncludeFiles.includes(filePath);
                 if (score === 0 && !isAlwaysIncluded) {
                     continue;
                 }
@@ -184,7 +133,7 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
                 scoredFiles.push({
                     path: filePath,
                     score: score + (isAlwaysIncluded ? 1 : 0),
-                    snippet: extractRelevantSnippet(content, keywords, settings.investigator.contextCollection.maxFileChars),
+                    snippet: extractRelevantSnippet(content, keywords, contextCollectionSettings.maxFileChars),
                 });
             } catch (error) {
                 this.logger.debug('Skipping unreadable workspace file during investigation context collection', {
@@ -237,9 +186,26 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
         }
 
         const absoluteDirectory = join(this.workspacePath, relativeDirectory);
-        const entries = await readdir(absoluteDirectory, { withFileTypes: true });
-        for (const entry of entries) {
-            const relativePath = relative(join(this.workspacePath), join(absoluteDirectory, entry.name)).replace(/\\/g, '/');
+        let entries;
+        try {
+            entries = await readdir(absoluteDirectory, { withFileTypes: true });
+        } catch (error) {
+            const details = {
+                directoryPath: absoluteDirectory,
+                error: error instanceof Error ? error.message : String(error),
+            };
+
+            if (relativeDirectory === '') {
+                this.logger.warn('Unable to read workspace while collecting investigation context files', details);
+            } else {
+                this.logger.debug('Skipping unreadable workspace directory during investigation context collection', details);
+            }
+
+            return collected;
+        }
+
+        for (const entry of sortDirectoryEntries(entries)) {
+            const relativePath = relative(this.workspacePath, join(absoluteDirectory, entry.name)).replace(/\\/g, '/');
             if (entry.isDirectory()) {
                 if (settings.excludeDirectories.includes(entry.name)) {
                     continue;

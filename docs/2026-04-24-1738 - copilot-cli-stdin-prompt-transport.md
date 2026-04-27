@@ -25,12 +25,27 @@ platforms.
 The provider now:
 
 - keeps command-line arguments for flags only (`--model`, `--silent`,
-  `--no-color`, tool-permission flags, and configured extra args)
+  `--no-color`, `--no-custom-instructions`, tool-permission flags, and
+  configured extra args)
+- adds `--no-remote` on every run and `--disable-builtin-mcps` when tools are
+  disallowed, because the programmatic provider never needs remote control or
+  background MCP startup for plain text completion
+- uses a neutral working directory for tool-free runs so the CLI does not bind
+  itself to the repository being analyzed unless tool access is intentionally
+  enabled
+- strips agent-specific and alternate-provider environment variables before
+  spawning the CLI so Copilot uses its own stored auth session instead of the
+  agent's PATs or API-provider settings
 - streams the full merged prompt over stdin
 - logs prompt size diagnostics (`promptLength`, `promptByteLength`) for support
   and troubleshooting
 - surfaces a dedicated integration error when the CLI still reports a
   command-line length failure
+- scans stdout as well as stderr for CLI diagnostics because some failure modes
+  are emitted on stdout with an empty stderr stream
+- retries once without a workspace cwd after a silent non-zero exit and, if the
+  failure persists, includes the latest Copilot process-log tail in the error
+  context
 
 ## Consequences
 
@@ -47,6 +62,8 @@ Negative:
 - requires regression coverage because the CLI help text emphasizes `-p` for
   scripting, while stdin behavior is discovered compatibility rather than an
   explicitly documented primary interface
+- repository-local Copilot instruction files can interfere with programmatic
+  prompts, so the provider now disables them explicitly for deterministic runs
 
 ## Alternatives considered
 

@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
 import { injectable } from 'inversify';
 import type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from '@hcdevagent/shared';
+import {
+    DEFAULT_PROCESS_RUNNER_TIMEOUT_MS,
+    PROCESS_RUNNER_SIGTERM_GRACE_MS,
+} from './processRunner.constants.js';
 import { resolveExecutableCommand } from './resolveExecutableCommand.js';
-
-const DEFAULT_TIMEOUT_MS = 120_000;
-const SIGTERM_GRACE_MS = 2_000;
 
 const normalizeWorkingDirectory = (cwd: string | undefined): string | undefined => {
     if (cwd === undefined) return undefined;
@@ -27,7 +28,7 @@ export class NodeProcessRunner implements ProcessRunner {
         args: ReadonlyArray<string>,
         options: ProcessRunOptions = {},
     ): Promise<ProcessRunResult> {
-        const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const timeoutMs = options.timeoutMs ?? DEFAULT_PROCESS_RUNNER_TIMEOUT_MS;
         const env = this.buildEnv(options.env);
         const executableCommand = resolveExecutableCommand({
             command,
@@ -60,7 +61,7 @@ export class NodeProcessRunner implements ProcessRunner {
                 child.kill('SIGTERM');
                 setTimeout(() => {
                     if (!settled) child.kill('SIGKILL');
-                }, SIGTERM_GRACE_MS).unref();
+                }, PROCESS_RUNNER_SIGTERM_GRACE_MS).unref();
             }, timeoutMs);
             killTimer.unref();
 

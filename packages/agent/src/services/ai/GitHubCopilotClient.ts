@@ -2,9 +2,11 @@ import { injectable, inject } from 'inversify';
 import type { AiClient, AiCompletionOptions, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS, IntegrationError } from '@hcdevagent/shared';
 import { AiModelSelector } from './AiModelSelector.js';
-
-const DEFAULT_COPILOT_API_URL = 'https://models.inference.ai.azure.com';
-const DEFAULT_COPILOT_MODEL = 'gpt-4o';
+import {
+    DEFAULT_GITHUB_MODELS_API_URL,
+    DEFAULT_GITHUB_MODELS_MODEL,
+} from './constants/githubCopilot.constants.js';
+import { logSelectedAiModel } from './logSelectedAiModel.js';
 
 /** Shape of a single chat message in the OpenAI-compatible API. */
 interface ChatMessage {
@@ -83,8 +85,8 @@ export class GitHubCopilotClient implements AiClient {
         @inject(SYMBOLS.Logger) private readonly logger: Logger,
     ) {
         const token = configProvider.getRequired('GITHUB_TOKEN');
-        this.apiUrl = configProvider.getOptional('COPILOT_API_URL') ?? DEFAULT_COPILOT_API_URL;
-        this.model = configProvider.getOptional('COPILOT_MODEL') ?? DEFAULT_COPILOT_MODEL;
+        this.apiUrl = configProvider.getOptional('COPILOT_API_URL') ?? DEFAULT_GITHUB_MODELS_API_URL;
+        this.model = configProvider.getOptional('COPILOT_MODEL') ?? DEFAULT_GITHUB_MODELS_MODEL;
         this.authHeader = `Bearer ${token}`;
         this.modelSelector = new AiModelSelector(configProvider);
     }
@@ -99,8 +101,15 @@ export class GitHubCopilotClient implements AiClient {
         options?: AiCompletionOptions,
     ): Promise<string> {
         const requestedModel = this.modelSelector.resolveModel(this.model, options) ?? this.model;
-        const fallbackModels = [this.model, DEFAULT_COPILOT_MODEL]
+        const fallbackModels = [this.model, DEFAULT_GITHUB_MODELS_MODEL]
             .filter((candidate, index, all) => candidate !== requestedModel && all.indexOf(candidate) === index);
+
+        logSelectedAiModel({
+            logger: this.logger,
+            provider: 'github-models',
+            model: requestedModel,
+            role: options?.role,
+        });
 
         return this.completeWithModel(requestedModel, systemPrompt, userPrompt, fallbackModels, options?.role);
     }

@@ -2,6 +2,8 @@ import { injectable, inject } from 'inversify';
 import type { AiClient, AiCompletionOptions, ConfigProvider, Logger } from '@hcdevagent/shared';
 import { SYMBOLS } from '@hcdevagent/shared';
 import { AiModelSelector } from './AiModelSelector.js';
+import { DEFAULT_OPENAI_MODEL, OPENAI_CHAT_COMPLETIONS_URL } from './constants/openAi.constants.js';
+import { logSelectedAiModel } from './logSelectedAiModel.js';
 
 /**
  * Client for communicating with the OpenAI API.
@@ -18,7 +20,7 @@ export class OpenAiClient implements AiClient {
     @inject(SYMBOLS.Logger) private readonly logger: Logger,
   ) {
     this.apiKey = configProvider.getRequired('OPENAI_API_KEY');
-    this.model = configProvider.getOptional('OPENAI_MODEL') ?? 'gpt-4';
+    this.model = configProvider.getOptional('OPENAI_MODEL') ?? DEFAULT_OPENAI_MODEL;
     this.modelSelector = new AiModelSelector(configProvider);
   }
 
@@ -31,8 +33,14 @@ export class OpenAiClient implements AiClient {
     options?: AiCompletionOptions,
   ): Promise<string> {
     const model = this.modelSelector.resolveModel(this.model, options) ?? this.model;
+    logSelectedAiModel({
+      logger: this.logger,
+      provider: 'openai',
+      model,
+      role: options?.role,
+    });
     this.logger.debug('Sending completion request to OpenAI', { model, role: options?.role });
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,

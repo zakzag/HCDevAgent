@@ -40,11 +40,13 @@ const makeFetchResponse = (ok: boolean, body: unknown, status = 200) => ({
 describe('GitHubCopilotClient', () => {
     let fetchMock: ReturnType<typeof vi.fn>;
     let client: GitHubCopilotClient;
+    let logger: Logger;
 
     beforeEach(() => {
         fetchMock = vi.fn();
         global.fetch = fetchMock as typeof fetch;
-        client = new GitHubCopilotClient(createMockConfig(), createMockLogger());
+        logger = createMockLogger();
+        client = new GitHubCopilotClient(createMockConfig(), logger);
     });
 
     describe('constructor', () => {
@@ -129,6 +131,20 @@ describe('GitHubCopilotClient', () => {
             const [, callOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
             const callBody = JSON.parse(callOptions['body'] as string) as { model: string };
             expect(callBody.model).toBe('gpt-5-mini');
+        });
+
+        it('logs the selected model and role when AI is called', async () => {
+            fetchMock.mockResolvedValue(makeFetchResponse(true, {
+                choices: [{ message: { content: 'Hello from Copilot' } }],
+            }));
+
+            await client.complete('system', 'user', { role: 'planning' });
+
+            expect(logger.info).toHaveBeenCalledWith('AI request model selected', {
+                provider: 'github-models',
+                model: 'gpt-4o',
+                role: 'planning',
+            });
         });
 
         it('returns empty string when choices array is empty', async () => {

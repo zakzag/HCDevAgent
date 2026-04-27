@@ -31,6 +31,14 @@ Used tech debt and Libraries
 * always write unit tests for new code, and cover all test cases, including error cases and edge cases
 * always write documentation for new code, and update documentation if existing code is changed
 
+## structuring code
+
+* use dependency injection for all dependencies, and never create instances of classes directly in the code, always use the container to resolve dependencies
+* use interfaces for all classes, and never use concrete classes directly in the code, always depend on abstractions, and use the container to resolve dependencies
+* use folders to organize code by feature
+* consts go in a separate file
+* helper functions go in a separate file, and never create helper functions in the code, always use the helper functions from the helper file
+
 ## Styles
 
 * use camelCase for variables and function names
