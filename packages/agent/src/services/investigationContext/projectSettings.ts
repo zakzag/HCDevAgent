@@ -2,6 +2,7 @@ import type {
     AutoFixabilityMetricKey,
     AutoFixabilityWeights,
     InvestigatorAutomationSettings,
+    InvestigatorBypassSettings,
 } from '@hcdevagent/shared';
 
 /** Settings controlling how repository files are selected for investigation context. */
@@ -20,6 +21,7 @@ export interface InvestigatorProjectSettings {
     readonly projectDescriptionFile: string;
     readonly contextCollection: InvestigatorContextCollectionSettings;
     readonly autoFixability: InvestigatorAutomationSettings;
+    readonly bypass: InvestigatorBypassSettings;
 }
 
 /** Placeholder section for future planner-specific project tuning. */
@@ -72,6 +74,14 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
             riskyPathPatterns: ['src/index.ts', 'src/server', 'auth', 'billing', 'payment', 'migration'],
             humanReviewLabels: ['needs-product-decision', 'breaking-change', 'security-sensitive'],
             weights: DEFAULT_AUTO_FIXABILITY_WEIGHTS,
+        },
+        bypass: {
+            enabled: true,
+            triggerPhrases: [
+                '!bypass-investigation',
+                'please ignore investigation',
+                'skip investigation',
+            ],
         },
     },
     planner: {
@@ -201,6 +211,21 @@ const parseAutoFixability = (value: unknown): InvestigatorAutomationSettings => 
     };
 };
 
+const parseBypass = (value: unknown): InvestigatorBypassSettings => {
+    const fallback = DEFAULT_PROJECT_SETTINGS.investigator.bypass;
+    if (!isRecord(value)) {
+        return {
+            enabled: fallback.enabled,
+            triggerPhrases: cloneStringArray(fallback.triggerPhrases),
+        };
+    }
+
+    return {
+        enabled: typeof value['enabled'] === 'boolean' ? value['enabled'] : fallback.enabled,
+        triggerPhrases: readStringArray(value['triggerPhrases'], fallback.triggerPhrases),
+    };
+};
+
 /** Parses project settings from JSON, falling back to safe defaults for unknown or missing values. */
 export const parseProjectSettings = (value: unknown): ProjectSettings => {
     if (!isRecord(value)) {
@@ -210,6 +235,7 @@ export const parseProjectSettings = (value: unknown): ProjectSettings => {
                 projectDescriptionFile: DEFAULT_PROJECT_SETTINGS.investigator.projectDescriptionFile,
                 contextCollection: parseContextCollection(undefined),
                 autoFixability: parseAutoFixability(undefined),
+                bypass: parseBypass(undefined),
             },
             planner: { notes: cloneStringArray(DEFAULT_PROJECT_SETTINGS.planner.notes) },
             implementer: { notes: cloneStringArray(DEFAULT_PROJECT_SETTINGS.implementer.notes) },
@@ -229,6 +255,7 @@ export const parseProjectSettings = (value: unknown): ProjectSettings => {
             ),
             contextCollection: parseContextCollection(investigator?.['contextCollection']),
             autoFixability: parseAutoFixability(investigator?.['autoFixability']),
+            bypass: parseBypass(investigator?.['bypass']),
         },
         planner: {
             notes: readStringArray(planner?.['notes'], DEFAULT_PROJECT_SETTINGS.planner.notes),

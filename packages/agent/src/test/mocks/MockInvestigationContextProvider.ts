@@ -26,6 +26,10 @@ export const DEFAULT_PREPARED_INVESTIGATION_CONTEXT: PreparedInvestigationContex
             humanDecisionIndependence: 0.1,
         },
     },
+    bypassSettings: {
+        enabled: false,
+        triggerPhrases: ['!bypass-investigation'],
+    },
 };
 
 /** Creates a mock InvestigationContextProvider backed by a prepared result. */

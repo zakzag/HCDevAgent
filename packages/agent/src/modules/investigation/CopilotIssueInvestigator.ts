@@ -13,6 +13,7 @@ import { SYMBOLS } from '@hcdevagent/shared';
 import { buildCommentsSection, buildRelatedIssuesSection } from './investigationPromptSections.js';
 import { parseInvestigationResponse } from './parseInvestigationResponse.js';
 import { scoreAutoFixability } from './scoreAutoFixability.js';
+import { detectInvestigationBypass, buildBypassedInvestigationResult } from './investigationBypass.js';
 
 
 /**
@@ -36,6 +37,20 @@ export class CopilotIssueInvestigator implements IssueInvestigator {
         this.logger.debug('Investigating issue', { issueKey: issue.key });
 
         const preparedContext = await this.contextProvider.loadContext(issue);
+
+        const bypassResult = detectInvestigationBypass(issue, preparedContext.bypassSettings);
+        if (bypassResult.bypassed) {
+            this.logger.info('Investigation bypassed by human instruction comment', {
+                issueKey: issue.key,
+                bypassCommentId: bypassResult.triggeringComment.id,
+                bypassCommentAuthor: bypassResult.triggeringComment.author,
+            });
+            return buildBypassedInvestigationResult(
+                issue,
+                preparedContext.contextUsed,
+                bypassResult.triggeringComment,
+            );
+        }
 
         const systemPrompt = this.prompts.getPrompt('investigation.system', {});
         const userPrompt = this.prompts.getPrompt('investigation.user', {

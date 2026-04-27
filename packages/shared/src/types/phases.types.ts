@@ -60,6 +60,17 @@ export interface AutoFixabilityWeights {
     readonly humanDecisionIndependence: number;
 }
 
+/** Settings that allow a human to bypass the investigation phase via a comment command. */
+export interface InvestigatorBypassSettings {
+    /** Whether the bypass feature is enabled for this project. */
+    readonly enabled: boolean;
+    /**
+     * Case-insensitive phrases that trigger the bypass when found in any issue comment.
+     * Example: ["!bypass-investigation", "skip investigation"]
+     */
+    readonly triggerPhrases: ReadonlyArray<string>;
+}
+
 /** Project-level automation settings used to interpret the investigation metrics. */
 export interface InvestigatorAutomationSettings {
     readonly minimumScore: number;
@@ -82,6 +93,7 @@ export interface InvestigationContext {
 export interface PreparedInvestigationContext {
     readonly contextUsed: InvestigationContext;
     readonly automationSettings: InvestigatorAutomationSettings;
+    readonly bypassSettings: InvestigatorBypassSettings;
 }
 
 /** Final routing decision for whether the issue can proceed autonomously. */

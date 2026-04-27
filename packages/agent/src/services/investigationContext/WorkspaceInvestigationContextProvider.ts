@@ -70,6 +70,7 @@ export class WorkspaceInvestigationContextProvider implements InvestigationConte
                 relevantFiles: codeChunks.relevantFiles,
             },
             automationSettings: settings.investigator.autoFixability,
+            bypassSettings: settings.investigator.bypass,
         };
     }
 

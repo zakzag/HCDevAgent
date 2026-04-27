@@ -7,6 +7,7 @@ export type {
     AutoFixabilityMetrics,
     AutoFixabilityWeights,
     InvestigatorAutomationSettings,
+    InvestigatorBypassSettings,
     InvestigationContext,
     PreparedInvestigationContext,
     AutoFixabilityDecision,

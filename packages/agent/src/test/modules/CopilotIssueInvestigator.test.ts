@@ -285,6 +285,74 @@ describe('CopilotIssueInvestigator', () => {
         });
     });
 
+    describe('investigate — bypass', () => {
+        it('skips the AI call and returns bypassed result when a matching comment exists', async () => {
+            const bypassContext: PreparedInvestigationContext = {
+                ...DEFAULT_PREPARED_INVESTIGATION_CONTEXT,
+                bypassSettings: {
+                    enabled: true,
+                    triggerPhrases: ['!bypass-investigation'],
+                },
+            };
+            investigator = new CopilotIssueInvestigator(
+                aiClient,
+                createMockLogger(),
+                createMockPromptRegistry(),
+                createMockInvestigationContextProvider(bypassContext),
+            );
+
+            const issue = makeIssue({
+                summary: 'Setup repo',
+                description: 'Create monorepo.',
+                comments: [{ id: 'c1', author: 'Alice', body: '!bypass-investigation please', createdAt: '2026-01-01' }],
+            });
+
+            const result = await investigator.investigate(issue);
+
+            expect(result.ready).toBe(true);
+            expect(result.descriptionForAi).toContain('Setup repo');
+            expect(result.autoFixabilityReport.decision).toBe('autoFixable');
+            expect(aiClient.complete).not.toHaveBeenCalled();
+        });
+
+        it('does not bypass when bypass is disabled in settings', async () => {
+            vi.mocked(aiClient.complete).mockResolvedValue(makeReadyResponse());
+            const issue = makeIssue({
+                comments: [{ id: 'c1', author: 'Alice', body: '!bypass-investigation', createdAt: '2026-01-01' }],
+            });
+
+            // DEFAULT_PREPARED_INVESTIGATION_CONTEXT has bypass.enabled=false
+            const result = await investigator.investigate(issue);
+
+            expect(aiClient.complete).toHaveBeenCalled();
+            expect(result.ready).toBe(true);
+        });
+
+        it('does not bypass when no comment matches the trigger phrases', async () => {
+            vi.mocked(aiClient.complete).mockResolvedValue(makeReadyResponse());
+            const bypassContext: PreparedInvestigationContext = {
+                ...DEFAULT_PREPARED_INVESTIGATION_CONTEXT,
+                bypassSettings: {
+                    enabled: true,
+                    triggerPhrases: ['!bypass-investigation'],
+                },
+            };
+            investigator = new CopilotIssueInvestigator(
+                aiClient,
+                createMockLogger(),
+                createMockPromptRegistry(),
+                createMockInvestigationContextProvider(bypassContext),
+            );
+            const issue = makeIssue({
+                comments: [{ id: 'c1', author: 'Alice', body: 'Please clarify scope.', createdAt: '2026-01-01' }],
+            });
+
+            await investigator.investigate(issue);
+
+            expect(aiClient.complete).toHaveBeenCalled();
+        });
+    });
+
     describe('investigate — error handling', () => {
         it('throws IntegrationError when AI returns invalid JSON', async () => {
             vi.mocked(aiClient.complete).mockResolvedValue('not json at all');
