@@ -13,6 +13,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',
+      reportsDirectory: '../../.coverage/api',
       thresholds: {
         statements: 80,
         branches: 80,

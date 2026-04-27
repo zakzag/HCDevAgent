@@ -141,3 +141,4 @@ dist
 vite.config.js.timestamp-*
 .coverage/lcov-report/
 .scannerwork/
+lcov-report/

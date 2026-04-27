@@ -7,7 +7,7 @@
   "scripts": {
     "build": "turbo run build",
     "test": "turbo run test",
-    "test:coverage": "turbo run test -- --coverage --coverage.reporter=lcov --coverage.reportsDirectory=../../.coverage --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --coverage.thresholds.branches=0",
+    "test:coverage": "turbo run test -- --coverage --coverage.reporter=lcov --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --coverage.thresholds.branches=0",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean"
